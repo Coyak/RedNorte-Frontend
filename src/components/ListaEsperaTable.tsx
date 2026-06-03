@@ -4,13 +4,19 @@ import { Search, Filter, Clock, Activity, AlertCircle, RefreshCw, Eye } from 'lu
 
 export interface ListaEsperaTableProps {
   atenciones: AtencionBase[];
-  onActualizarEstado: (id: number, nuevoEstado: EstadoAtencion) => Promise<any>;
-  onCancelarYReasignar: (id: number) => Promise<any>;
+  buscando: boolean;
+  error: string | null;
+  onErrorClose: () => void;
+  onActualizarEstado: (id: number, nuevoEstado: EstadoAtencion) => void;
+  onCancelarYReasignar: (id: number) => void;
   onVerDetalle?: (atencion: AtencionBase) => void;
 }
 
 export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
   atenciones,
+  buscando,
+  error,
+  onErrorClose,
   onActualizarEstado,
   onCancelarYReasignar,
   onVerDetalle
@@ -18,8 +24,6 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('TODOS');
   const [prioridadFilter, setPrioridadFilter] = useState<string>('TODOS');
-  const [buscando, setBuscando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Filtrar las atenciones
   const atencionesFiltradas = atenciones.filter((a) => {
@@ -43,32 +47,6 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
   const urgenciasActivas = atenciones.filter(
     (a) => a.estado === 'EN_ESPERA' && a.prioridad === 1
   ).length;
-
-  const handleCancelarYReasignar = async (id: number) => {
-    setBuscando(true);
-    setError(null);
-    try {
-      await onCancelarYReasignar(id);
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message || 'Error en el servidor al intentar reasignar el cupo.');
-    } finally {
-      setBuscando(false);
-    }
-  };
-
-  const handleActualizarEstado = async (id: number, nuevoEstado: EstadoAtencion) => {
-    setBuscando(true);
-    setError(null);
-    try {
-      await onActualizarEstado(id, nuevoEstado);
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message || 'Error al intentar actualizar el estado de la atención.');
-    } finally {
-      setBuscando(false);
-    }
-  };
 
   const formatearFecha = (fechaStr: string) => {
     const fecha = new Date(fechaStr);
@@ -155,7 +133,7 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', opacity: 0.9 }}>{error}</p>
             </div>
             <button 
-              onClick={() => setError(null)} 
+              onClick={onErrorClose} 
               style={{ 
                 background: 'transparent', 
                 border: 0, 
@@ -311,7 +289,7 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
                       
                       {atencion.estado === 'AGENDADO' && (
                         <button
-                          onClick={() => handleCancelarYReasignar(atencion.id)}
+                          onClick={() => onCancelarYReasignar(atencion.id)}
                           disabled={buscando}
                           className="rn-btn rn-btn-secondary"
                           style={{
@@ -329,7 +307,7 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
 
                       {atencion.estado === 'EN_ESPERA' && (
                         <button
-                          onClick={() => handleActualizarEstado(atencion.id, 'AGENDADO')}
+                          onClick={() => onActualizarEstado(atencion.id, 'AGENDADO')}
                           disabled={buscando}
                           className="rn-btn rn-btn-primary"
                           style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}

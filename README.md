@@ -25,21 +25,43 @@ RedNorte-frontend/
 ├── dist/                     # Carpeta final de distribución (NPM Bundle generado en el build)
 ├── public/                   # Archivos estáticos públicos
 ├── src/
-│   ├── components/           # Componentes UI encapsulados de la biblioteca
-│   │   ├── ListaEsperaTable.tsx  # Tabla de lista de espera con filtros analíticos
-│   │   ├── CitasDashboard.tsx    # Portal del Paciente & Simulador de Circuit Breaker
+│   ├── components/           # Presenters: Componentes visuales puros y reactivos
+│   │   ├── ListaEsperaTable.tsx  # Tabla de lista de espera (solo render y estados UI)
+│   │   ├── CitasDashboard.tsx    # Portal del Paciente (solo render)
 │   │   └── index.ts              # Exportador de componentes
-│   ├── hooks/                # Lógica de negocio y simulador de APIs
+│   ├── containers/           # Containers: Componentes inteligentes de estado y llamadas asíncronas
+│   │   ├── ListaEsperaContainer.tsx  # Contenedor de estado para la lista de espera
+│   │   ├── CitasDashboardContainer.tsx # Contenedor de estado para el portal de pacientes
+│   │   └── index.ts              # Exportador de contenedores
+│   ├── hooks/                # Lógica de negocio y llamadas a la API
 │   │   └── useListasEspera.ts    # Manejo de estado asíncrono y motor de reasignación
 │   ├── styles/               # Sistema de diseño con variables HSL
 │   │   └── main.css              # Estilos premium CSS responsivos y temas claro/oscuro
-│   ├── App.tsx               # Showcase de desarrollo local (Demo interactiva)
+│   ├── App.tsx               # Showcase de desarrollo local (Demo interactiva con Containers)
 │   ├── index.ts              # Punto de entrada principal para exportaciones de la biblioteca NPM
 │   └── main.tsx              # Inicialización local de React
 ├── package.json              # Configuración del paquete NPM (exports, scripts y dependencias)
 ├── vite.config.ts            # Compilación en Modo Librería y generación de tipos (.d.ts)
 └── tsconfig.json             # Ajustes de tipado de TypeScript
 ```
+
+---
+
+## 🏗️ Patrón de Arquitectura: Container / Presenter
+
+Para cumplir con las directrices de la evaluación, el frontend está estructurado estrictamente bajo el patrón **Container / Presenter** (componentes inteligentes/tontos). Esto permite una separación de responsabilidades clara y profesional:
+
+- **Contenedores (`src/containers/`)**:
+  - Son los componentes *Smart*. Tienen acceso a los custom hooks (`useListasEspera`) y realizan la orquestación de llamadas asíncronas hacia el BFF y la API.
+  - Manejan los estados de carga específicos (`buscando`, `loadingCitas`, `procesando`) y el control local de errores de la API.
+  - Inyectan datos y funciones de callback formateadas hacia los componentes visuales mediante props.
+  - **Archivos**: [ListaEsperaContainer.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/containers/ListaEsperaContainer.tsx) y [CitasDashboardContainer.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/containers/CitasDashboardContainer.tsx).
+
+- **Presentadores (`src/components/`)**:
+  - Son los componentes *Dumb*. Su única función es pintar la interfaz basándose en las props recibidas y notificar interacciones del usuario mediante callbacks.
+  - No hacen llamadas directas a hooks globales, no manejan bloques try-catch asíncronos para operaciones ni realizan peticiones HTTP.
+  - Únicamente mantienen estados de UI visuales locales de interacción (como filtros de ordenamiento, términos de búsqueda o visualización modal).
+  - **Archivos**: [ListaEsperaTable.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/components/ListaEsperaTable.tsx) y [CitasDashboard.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/components/CitasDashboard.tsx).
 
 ---
 
