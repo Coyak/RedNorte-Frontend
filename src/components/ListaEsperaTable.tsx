@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AtencionBase, EstadoAtencion, TipoAtencion } from '../hooks/useListasEspera';
+import { AtencionBase, EstadoAtencion } from '../hooks/useListasEspera';
 import { Search, Filter, Clock, Activity, AlertCircle, RefreshCw, Eye } from 'lucide-react';
 
 export interface ListaEsperaTableProps {
@@ -19,10 +19,10 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
   const [tipoFilter, setTipoFilter] = useState<string>('TODOS');
   const [prioridadFilter, setPrioridadFilter] = useState<string>('TODOS');
   const [buscando, setBuscando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Filtrar las atenciones
   const atencionesFiltradas = atenciones.filter((a) => {
-    // 1. Filtrar por término de búsqueda (RUT, Nombre o Apellido)
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       a.paciente.rut.toLowerCase().includes(term) ||
@@ -30,10 +30,7 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
       a.paciente.apellidos.toLowerCase().includes(term) ||
       a.detalle.toLowerCase().includes(term);
 
-    // 2. Filtrar por Tipo de Atención
     const matchesTipo = tipoFilter === 'TODOS' || a.tipo === tipoFilter;
-
-    // 3. Filtrar por Prioridad
     const matchesPrioridad =
       prioridadFilter === 'TODOS' || a.prioridad.toString() === prioridadFilter;
 
@@ -49,10 +46,25 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
 
   const handleCancelarYReasignar = async (id: number) => {
     setBuscando(true);
+    setError(null);
     try {
       await onCancelarYReasignar(id);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setError(e.message || 'Error en el servidor al intentar reasignar el cupo.');
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  const handleActualizarEstado = async (id: number, nuevoEstado: EstadoAtencion) => {
+    setBuscando(true);
+    setError(null);
+    try {
+      await onActualizarEstado(id, nuevoEstado);
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || 'Error al intentar actualizar el estado de la atención.');
     } finally {
       setBuscando(false);
     }
@@ -132,6 +144,32 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ⚠️ Alerta de Error de Operación */}
+      {error && (
+        <div className="rn-alert rn-alert-danger animate-fade-in" style={{ marginBottom: '1.5rem' }}>
+          <AlertCircle size={20} style={{ color: 'hsl(var(--danger))', flexShrink: 0 }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div>
+              <strong style={{ fontWeight: 700 }}>Error de Operación:</strong>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', opacity: 0.9 }}>{error}</p>
+            </div>
+            <button 
+              onClick={() => setError(null)} 
+              style={{ 
+                background: 'transparent', 
+                border: 0, 
+                color: 'inherit', 
+                cursor: 'pointer', 
+                fontWeight: 'bold',
+                padding: '0.25rem 0.5rem'
+              }}
+            >
+              X
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 🔍 Controles de Búsqueda y Filtros */}
       <div className="rn-card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
@@ -291,11 +329,19 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
 
                       {atencion.estado === 'EN_ESPERA' && (
                         <button
-                          onClick={() => onActualizarEstado(atencion.id, 'AGENDADO')}
+                          onClick={() => handleActualizarEstado(atencion.id, 'AGENDADO')}
+                          disabled={buscando}
                           className="rn-btn rn-btn-primary"
                           style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
                         >
-                          Agendar
+                          {buscando ? (
+                            <>
+                              <RefreshCw size={12} className="animate-spin" />
+                              Agendando
+                            </>
+                          ) : (
+                            'Agendar'
+                          )}
                         </button>
                       )}
                     </div>
