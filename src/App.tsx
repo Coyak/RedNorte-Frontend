@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useListasEspera, Paciente, TipoAtencion } from './hooks/useListasEspera';
-import { ListaEsperaTable } from './components/ListaEsperaTable';
-import { CitasDashboard } from './components/CitasDashboard';
+import { ListaEsperaContainer, CitasDashboardContainer } from './containers';
 import { 
   Plus, Sun, Moon, RotateCcw, Activity, ShieldCheck, HeartPulse, 
   UserPlus, CheckCircle2, History, RefreshCw, Key
@@ -550,7 +549,7 @@ function App() {
                   Centraliza las derivaciones médicas del hospital. Asigna horas disponibles o reasigna citas canceladas automáticamente.
                 </p>
               </div>
-              <ListaEsperaTable
+              <ListaEsperaContainer
                 atenciones={atenciones}
                 onActualizarEstado={actualizarEstadoAtencion}
                 onCancelarYReasignar={cancelarYReasignar}
@@ -560,7 +559,7 @@ function App() {
 
           {/* TAB 2: Portal de Paciente (BFF) */}
           {activeTab === 'portal' && (
-            <CitasDashboard
+            <CitasDashboardContainer
               pacientes={pacientes}
               userRole={userRole}
               currentUserRut={userRut}

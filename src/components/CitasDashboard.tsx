@@ -8,104 +8,34 @@ import {
 export interface CitasDashboardProps {
   pacientes: Paciente[];
   userRole: string | null;
-  currentUserRut: string | null;
-  reasignaciones: Reasignacion[];
-  onCancelarYReasignar: (id: number) => Promise<any>;
-  obtenerCitasPaciente: (rut: string) => Promise<any>;
-  obtenerPerfilPaciente: (rut: string) => Promise<any>;
+  selectedPacienteRut: string;
+  onSelectedPacienteRutChange: (rut: string) => void;
+  pacienteActivo: Paciente | null;
+  citas: AtencionBase[];
+  loadingCitas: boolean;
+  citasError: string | null;
+  isBffFallback: boolean;
+  bffFallbackMsg: string;
+  procesando: number | null;
+  onCancelarCita: (id: number) => void;
+  reasignacionesPaciente: Reasignacion[];
 }
 
 export const CitasDashboard: React.FC<CitasDashboardProps> = ({
   pacientes,
   userRole,
-  currentUserRut,
-  reasignaciones,
-  onCancelarYReasignar,
-  obtenerCitasPaciente,
-  obtenerPerfilPaciente
+  selectedPacienteRut,
+  onSelectedPacienteRutChange,
+  pacienteActivo,
+  citas,
+  loadingCitas,
+  citasError,
+  isBffFallback,
+  bffFallbackMsg,
+  procesando,
+  onCancelarCita,
+  reasignacionesPaciente
 }) => {
-  const [selectedPacienteRut, setSelectedPacienteRut] = useState<string>('');
-  const [pacienteActivo, setPacienteActivo] = useState<Paciente | null>(null);
-  const [citas, setCitas] = useState<AtencionBase[]>([]);
-  const [loadingCitas, setLoadingCitas] = useState(false);
-  const [citasError, setCitasError] = useState<string | null>(null);
-  const [isBffFallback, setIsBffFallback] = useState(false);
-  const [bffFallbackMsg, setBffFallbackMsg] = useState('');
-  const [procesando, setProcesando] = useState<number | null>(null);
-
-  // Set initial selected patient RUT
-  useEffect(() => {
-    if (userRole === 'ROLE_PACIENTE' && currentUserRut) {
-      setSelectedPacienteRut(currentUserRut);
-    } else if (pacientes.length > 0) {
-      setSelectedPacienteRut(pacientes[0].rut);
-    }
-  }, [userRole, currentUserRut, pacientes]);
-
-  // Load patient data and appointments from BFF
-  const cargarDatosPaciente = useCallback(async (rut: string) => {
-    if (!rut) return;
-    setLoadingCitas(true);
-    setCitasError(null);
-    setIsBffFallback(false);
-    setBffFallbackMsg('');
-    try {
-      // 1. Fetch profile from portal-paciente
-      try {
-        const perfil = await obtenerPerfilPaciente(rut);
-        setPacienteActivo(perfil);
-      } catch (e) {
-        console.warn('Failed to load profile from portal microservice, using local list fallback:', e);
-        const local = pacientes.find((p) => p.rut === rut);
-        setPacienteActivo(local || null);
-      }
-
-      // 2. Fetch appointments from BFF (portal-paciente orquestador)
-      const res = await obtenerCitasPaciente(rut);
-      if (res.isFallback) {
-        setIsBffFallback(true);
-        setBffFallbackMsg(res.mensaje);
-        setCitas([]);
-      } else {
-        setCitas(res.data);
-      }
-    } catch (err: any) {
-      console.error('Error in portal communication:', err);
-      if (err.response?.status === 503) {
-        setCitasError('[Resilience4j - Circuit Breaker] El API Gateway reporta 503 Service Unavailable. El microservicio ms-listas-espera no responde.');
-      } else {
-        setCitasError(err.message || 'Error de conexión con el API Gateway / BFF');
-      }
-      setCitas([]);
-    } finally {
-      setLoadingCitas(false);
-    }
-  }, [pacientes, obtenerCitasPaciente, obtenerPerfilPaciente]);
-
-  // Trigger load when selected patient changes
-  useEffect(() => {
-    if (selectedPacienteRut) {
-      cargarDatosPaciente(selectedPacienteRut);
-    }
-  }, [selectedPacienteRut, cargarDatosPaciente]);
-
-  const reasignacionesPaciente = reasignaciones.filter(
-    (r) => r.rutPacienteOriginal === selectedPacienteRut || r.rutPacienteReasignado === selectedPacienteRut
-  );
-
-  const handleCancelarCita = async (id: number) => {
-    setProcesando(id);
-    try {
-      await onCancelarYReasignar(id);
-      if (selectedPacienteRut) {
-        await cargarDatosPaciente(selectedPacienteRut);
-      }
-    } catch (e: any) {
-      alert(`[Resilience4j - Circuit Breaker] Error en reasignación automática: ${e.message}`);
-    } finally {
-      setProcesando(null);
-    }
-  };
 
   const formatearFecha = (fechaStr: string) => {
     const fecha = new Date(fechaStr);
@@ -168,7 +98,7 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
               <span className="rn-label" style={{ margin: 0 }}>Visualizar Paciente:</span>
               <select
                 value={selectedPacienteRut}
-                onChange={(e) => setSelectedPacienteRut(e.target.value)}
+                onChange={(e) => onSelectedPacienteRutChange(e.target.value)}
                 className="rn-select"
                 style={{ padding: '0.4rem 1.75rem 0.4rem 0.75rem', fontSize: '0.875rem', minWidth: '180px' }}
               >
@@ -389,7 +319,7 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
                       <div>
                         {cita.estado === 'AGENDADO' && (
                           <button
-                            onClick={() => handleCancelarCita(cita.id)}
+                            onClick={() => onCancelarCita(cita.id)}
                             disabled={procesando === cita.id}
                             className="rn-btn rn-btn-danger"
                             style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
