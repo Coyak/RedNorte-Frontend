@@ -4,7 +4,7 @@ import { ListaEsperaTable } from './components/ListaEsperaTable';
 import { CitasDashboard } from './components/CitasDashboard';
 import { 
   Plus, Sun, Moon, RotateCcw, Activity, ShieldCheck, HeartPulse, 
-  UserPlus, FilePlus2, CheckCircle2, History
+  UserPlus, CheckCircle2, History, RefreshCw, Key
 } from 'lucide-react';
 
 function App() {
@@ -13,10 +13,18 @@ function App() {
     atenciones,
     reasignaciones,
     loading,
+    token,
+    userRole,
+    username,
+    userRut,
+    login,
+    logout,
     registrarPaciente,
     registrarAtencion,
     actualizarEstadoAtencion,
     cancelarYReasignar,
+    obtenerCitasPaciente,
+    obtenerPerfilPaciente,
     resetearDatos
   } = useListasEspera();
 
@@ -26,6 +34,11 @@ function App() {
   // Modales
   const [showPacienteModal, setShowPacienteModal] = useState(false);
   const [showAtencionModal, setShowAtencionModal] = useState(false);
+
+  // Login Form States
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Formulario Nuevo Paciente
   const [nuevoPaciente, setNuevoPaciente] = useState<Paciente>({
@@ -58,6 +71,31 @@ function App() {
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  // Redirect role-specific landing tabs
+  useEffect(() => {
+    if (userRole === 'ROLE_PACIENTE') {
+      setActiveTab('portal');
+    } else {
+      setActiveTab('admin');
+    }
+  }, [userRole]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    if (!loginUsername || !loginPassword) {
+      setLoginError('Por favor ingrese su usuario y contraseña.');
+      return;
+    }
+    try {
+      await login(loginUsername, loginPassword);
+      setLoginUsername('');
+      setLoginPassword('');
+    } catch (err: any) {
+      setLoginError(err.message || 'Error de autenticación.');
+    }
   };
 
   const handleCrearPaciente = async (e: React.FormEvent) => {
@@ -123,6 +161,161 @@ function App() {
     }, 4000);
   };
 
+  // Render Login Screen if not authenticated
+  if (!token) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, hsl(var(--background)), hsl(var(--muted)/0.4))',
+        padding: '1.5rem',
+        position: 'relative',
+        transition: 'all 0.3s ease'
+      }}>
+        {/* Theme Toggle Button */}
+        <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
+          <button
+            onClick={toggleTheme}
+            className="rn-btn rn-btn-icon"
+            style={{
+              borderRadius: '9999px',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title={theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}
+          >
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+        </div>
+
+        <div className="rn-card animate-fade-in" style={{
+          maxWidth: '420px',
+          width: '100%',
+          padding: '2.5rem 2rem',
+          backgroundColor: 'hsl(var(--card) / 0.85)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid hsl(var(--border))',
+          boxShadow: 'var(--shadow-xl)',
+          borderRadius: 'var(--radius-2xl)'
+        }}>
+          {/* Logo / Header */}
+          <div style={{ textAlign: 'center', marginBottom: '2.25rem' }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: 'var(--radius-xl)',
+              background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+              color: 'white',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1rem',
+              boxShadow: '0 8px 24px hsl(var(--primary)/0.25)'
+            }}>
+              <HeartPulse size={32} />
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>RedNorte</h2>
+            <p style={{ fontSize: '0.8125rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
+              Plataforma de Integración y Lista de Espera
+            </p>
+          </div>
+
+          {loginError && (
+            <div className="rn-alert rn-alert-warning" style={{ padding: '0.75rem', fontSize: '0.8125rem', marginBottom: '1.25rem' }}>
+              <ShieldCheck size={16} style={{ flexShrink: 0, marginTop: '0.125rem' }} />
+              <div>{loginError}</div>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin}>
+            <div className="rn-form-group">
+              <label className="rn-label">Usuario / RUT</label>
+              <input
+                type="text"
+                className="rn-input"
+                placeholder="Ej: admin o paciente"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div className="rn-form-group" style={{ marginBottom: '1.75rem' }}>
+              <label className="rn-label">Contraseña</label>
+              <input
+                type="password"
+                className="rn-input"
+                placeholder="••••••••"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="rn-btn rn-btn-primary"
+              style={{ width: '100%', padding: '0.75rem', fontSize: '0.9375rem', marginBottom: '1.75rem' }}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                'Iniciar Sesión'
+              )}
+            </button>
+          </form>
+
+          {/* Demo credentials info */}
+          <div style={{
+            backgroundColor: 'hsl(var(--muted)/0.2)',
+            padding: '1rem',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid hsl(var(--border))'
+          }}>
+            <h4 style={{
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              color: 'hsl(var(--muted-foreground))',
+              marginBottom: '0.5rem',
+              display: 'flex',
+              gap: '0.375rem',
+              alignItems: 'center'
+            }}>
+              <Key size={12} /> Credenciales de Demostración
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600 }}>Administrador:</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>admin / admin123</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600 }}>Médico:</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>medico / medico123</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600 }}>Paciente:</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>paciente / paciente123</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Authenticated Console
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
@@ -177,23 +370,39 @@ function App() {
                 lineHeight: 1.2,
                 margin: 0
               }}>
-                RedNorte <span style={{ fontWeight: 400, color: 'hsl(var(--muted-foreground))', fontSize: '1rem' }}>| Plataforma Lista de Espera</span>
+                RedNorte <span style={{ fontWeight: 400, color: 'hsl(var(--muted-foreground))', fontSize: '1rem' }}>| Plataforma Real</span>
               </h1>
             </div>
           </div>
 
           {/* Acciones Rápidas Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Botón de Reset */}
-            <button
-              onClick={resetearDatos}
-              className="rn-btn rn-btn-secondary"
-              style={{ padding: '0.5rem 0.875rem', fontSize: '0.8125rem' }}
-              title="Restablecer base de datos simulada a valores de fábrica"
-            >
-              <RotateCcw size={14} />
-              Reset
-            </button>
+            {/* User Badge */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              marginRight: '0.5rem',
+              fontSize: '0.75rem'
+            }}>
+              <span style={{ fontWeight: 700, color: 'hsl(var(--foreground))' }}>{username}</span>
+              <span style={{ color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', fontSize: '0.625rem' }}>
+                {userRole?.replace('ROLE_', '')}
+              </span>
+            </div>
+
+            {/* Botón de Reset (Only Admins / Doctors) */}
+            {userRole !== 'ROLE_PACIENTE' && (
+              <button
+                onClick={resetearDatos}
+                className="rn-btn rn-btn-secondary"
+                style={{ padding: '0.5rem 0.875rem', fontSize: '0.8125rem' }}
+                title="Restablecer base de datos a valores de fábrica"
+              >
+                <RotateCcw size={14} />
+                Sincronizar
+              </button>
+            )}
 
             {/* Selector de Tema */}
             <button
@@ -210,6 +419,21 @@ function App() {
               title={theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}
             >
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+
+            {/* Cerrar Sesión */}
+            <button
+              onClick={logout}
+              className="rn-btn rn-btn-secondary"
+              style={{
+                padding: '0.5rem 0.875rem',
+                fontSize: '0.8125rem',
+                backgroundColor: 'hsl(var(--danger) / 0.1)',
+                color: 'hsl(var(--danger))',
+                borderColor: 'hsl(var(--danger) / 0.2)'
+              }}
+            >
+              Salir
             </button>
           </div>
         </div>
@@ -238,52 +462,61 @@ function App() {
           paddingBottom: '0.75rem'
         }}>
           {/* Navegación de Pestañas */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => setActiveTab('admin')}
-              className="rn-btn"
-              style={{
-                backgroundColor: activeTab === 'admin' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
-                color: activeTab === 'admin' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                borderRadius: 'var(--radius-lg)',
-                padding: '0.5rem 1rem'
-              }}
-            >
-              <Activity size={16} />
-              Lista de Espera
-            </button>
+          {userRole !== 'ROLE_PACIENTE' ? (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => setActiveTab('admin')}
+                className="rn-btn"
+                style={{
+                  backgroundColor: activeTab === 'admin' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                  color: activeTab === 'admin' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '0.5rem 1rem'
+                }}
+              >
+                <Activity size={16} />
+                Lista de Espera
+              </button>
 
-            <button
-              onClick={() => setActiveTab('portal')}
-              className="rn-btn"
-              style={{
-                backgroundColor: activeTab === 'portal' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
-                color: activeTab === 'portal' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                borderRadius: 'var(--radius-lg)',
-                padding: '0.5rem 1rem'
-              }}
-            >
-              <ShieldCheck size={16} />
-              Portal de Pacientes (BFF)
-            </button>
+              <button
+                onClick={() => setActiveTab('portal')}
+                className="rn-btn"
+                style={{
+                  backgroundColor: activeTab === 'portal' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                  color: activeTab === 'portal' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '0.5rem 1rem'
+                }}
+              >
+                <ShieldCheck size={16} />
+                Portal de Pacientes (BFF)
+              </button>
 
-            <button
-              onClick={() => setActiveTab('auditoria')}
-              className="rn-btn"
-              style={{
-                backgroundColor: activeTab === 'auditoria' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
-                color: activeTab === 'auditoria' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                borderRadius: 'var(--radius-lg)',
-                padding: '0.5rem 1rem'
-              }}
-            >
-              <History size={16} />
-              Logs de Reasignación
-            </button>
-          </div>
+              <button
+                onClick={() => setActiveTab('auditoria')}
+                className="rn-btn"
+                style={{
+                  backgroundColor: activeTab === 'auditoria' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                  color: activeTab === 'auditoria' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '0.5rem 1rem'
+                }}
+              >
+                <History size={16} />
+                Logs de Reasignación
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span className="rn-badge rn-badge-agendado" style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem' }}>
+                <ShieldCheck size={16} style={{ marginRight: '0.375rem' }} />
+                Portal del Paciente
+              </span>
+            </div>
+          )}
 
           {/* Botones de Registro rápido */}
-          {activeTab === 'admin' && (
+          {activeTab === 'admin' && userRole !== 'ROLE_PACIENTE' && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={() => setShowPacienteModal(true)}
@@ -309,7 +542,7 @@ function App() {
         {/* 💻 Vistas correspondientes a cada Tab */}
         <div>
           {/* TAB 1: Consola Administrativa (Lista de Espera) */}
-          {activeTab === 'admin' && (
+          {activeTab === 'admin' && userRole !== 'ROLE_PACIENTE' && (
             <div className="animate-fade-in">
               <div style={{ marginBottom: '1rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Consola de Gestión de Derivaciones</h2>
@@ -329,15 +562,17 @@ function App() {
           {activeTab === 'portal' && (
             <CitasDashboard
               pacientes={pacientes}
-              atenciones={atenciones}
+              userRole={userRole}
+              currentUserRut={userRut}
               reasignaciones={reasignaciones}
               onCancelarYReasignar={cancelarYReasignar}
-              onActualizarEstado={actualizarEstadoAtencion}
+              obtenerCitasPaciente={obtenerCitasPaciente}
+              obtenerPerfilPaciente={obtenerPerfilPaciente}
             />
           )}
 
           {/* TAB 3: Historial y Logs de Reasignación (ms-reasignacion Auditoría) */}
-          {activeTab === 'auditoria' && (
+          {activeTab === 'auditoria' && userRole !== 'ROLE_PACIENTE' && (
             <div className="animate-fade-in">
               <div style={{ marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Auditoría del Motor de Reasignación Automática</h2>
@@ -518,7 +753,7 @@ function App() {
                       type="text"
                       className="rn-input"
                       placeholder="+56912345678"
-                      value={nuevoPaciente.telefono}
+                      value={nuevoPaciente.telefono || ''}
                       onChange={(e) => setNuevoPaciente({ ...nuevoPaciente, telefono: e.target.value })}
                     />
                   </div>
@@ -542,7 +777,7 @@ function App() {
                     className="rn-textarea"
                     rows={2}
                     placeholder="Antecedentes crónicos, alergias, etc..."
-                    value={nuevoPaciente.historialClinicoBasico}
+                    value={nuevoPaciente.historialClinicoBasico || ''}
                     onChange={(e) => setNuevoPaciente({ ...nuevoPaciente, historialClinicoBasico: e.target.value })}
                   />
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Paciente, AtencionBase, Reasignacion, EstadoAtencion } from '../hooks/useListasEspera';
 import { 
   User, ShieldAlert, Heart, Calendar, Clock, CheckCircle, 
@@ -7,30 +7,88 @@ import {
 
 export interface CitasDashboardProps {
   pacientes: Paciente[];
-  atenciones: AtencionBase[];
+  userRole: string | null;
+  currentUserRut: string | null;
   reasignaciones: Reasignacion[];
   onCancelarYReasignar: (id: number) => Promise<any>;
-  onActualizarEstado: (id: number, nuevoEstado: EstadoAtencion) => Promise<any>;
+  obtenerCitasPaciente: (rut: string) => Promise<any>;
+  obtenerPerfilPaciente: (rut: string) => Promise<any>;
 }
 
 export const CitasDashboard: React.FC<CitasDashboardProps> = ({
   pacientes,
-  atenciones,
+  userRole,
+  currentUserRut,
   reasignaciones,
   onCancelarYReasignar,
-  onActualizarEstado
+  obtenerCitasPaciente,
+  obtenerPerfilPaciente
 }) => {
-  const [selectedPacienteRut, setSelectedPacienteRut] = useState<string>(pacientes[0]?.rut || '');
-  const [simularFalloConexion, setSimularFalloConexion] = useState(false);
+  const [selectedPacienteRut, setSelectedPacienteRut] = useState<string>('');
+  const [pacienteActivo, setPacienteActivo] = useState<Paciente | null>(null);
+  const [citas, setCitas] = useState<AtencionBase[]>([]);
+  const [loadingCitas, setLoadingCitas] = useState(false);
+  const [citasError, setCitasError] = useState<string | null>(null);
+  const [isBffFallback, setIsBffFallback] = useState(false);
+  const [bffFallbackMsg, setBffFallbackMsg] = useState('');
   const [procesando, setProcesando] = useState<number | null>(null);
 
-  // Obtener paciente seleccionado
-  const pacienteActivo = pacientes.find((p) => p.rut === selectedPacienteRut);
+  // Set initial selected patient RUT
+  useEffect(() => {
+    if (userRole === 'ROLE_PACIENTE' && currentUserRut) {
+      setSelectedPacienteRut(currentUserRut);
+    } else if (pacientes.length > 0) {
+      setSelectedPacienteRut(pacientes[0].rut);
+    }
+  }, [userRole, currentUserRut, pacientes]);
 
-  // Obtener atenciones del paciente seleccionado (Simulando API Gateway BFF)
-  const citasPaciente = atenciones.filter((a) => a.paciente.rut === selectedPacienteRut);
+  // Load patient data and appointments from BFF
+  const cargarDatosPaciente = useCallback(async (rut: string) => {
+    if (!rut) return;
+    setLoadingCitas(true);
+    setCitasError(null);
+    setIsBffFallback(false);
+    setBffFallbackMsg('');
+    try {
+      // 1. Fetch profile from portal-paciente
+      try {
+        const perfil = await obtenerPerfilPaciente(rut);
+        setPacienteActivo(perfil);
+      } catch (e) {
+        console.warn('Failed to load profile from portal microservice, using local list fallback:', e);
+        const local = pacientes.find((p) => p.rut === rut);
+        setPacienteActivo(local || null);
+      }
 
-  // Obtener historial de reasignaciones relacionadas con este paciente (como original o reasignado)
+      // 2. Fetch appointments from BFF (portal-paciente orquestador)
+      const res = await obtenerCitasPaciente(rut);
+      if (res.isFallback) {
+        setIsBffFallback(true);
+        setBffFallbackMsg(res.mensaje);
+        setCitas([]);
+      } else {
+        setCitas(res.data);
+      }
+    } catch (err: any) {
+      console.error('Error in portal communication:', err);
+      if (err.response?.status === 503) {
+        setCitasError('[Resilience4j - Circuit Breaker] El API Gateway reporta 503 Service Unavailable. El microservicio ms-listas-espera no responde.');
+      } else {
+        setCitasError(err.message || 'Error de conexión con el API Gateway / BFF');
+      }
+      setCitas([]);
+    } finally {
+      setLoadingCitas(false);
+    }
+  }, [pacientes, obtenerCitasPaciente, obtenerPerfilPaciente]);
+
+  // Trigger load when selected patient changes
+  useEffect(() => {
+    if (selectedPacienteRut) {
+      cargarDatosPaciente(selectedPacienteRut);
+    }
+  }, [selectedPacienteRut, cargarDatosPaciente]);
+
   const reasignacionesPaciente = reasignaciones.filter(
     (r) => r.rutPacienteOriginal === selectedPacienteRut || r.rutPacienteReasignado === selectedPacienteRut
   );
@@ -38,14 +96,12 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
   const handleCancelarCita = async (id: number) => {
     setProcesando(id);
     try {
-      if (simularFalloConexion) {
-        // Simular retraso y lanzar error para disparar el Fallback del Circuit Breaker
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        throw new Error("Timeout: MS-LISTAS-ESPERA no responde. Connection refused.");
-      }
       await onCancelarYReasignar(id);
+      if (selectedPacienteRut) {
+        await cargarDatosPaciente(selectedPacienteRut);
+      }
     } catch (e: any) {
-      alert(`[Resilience4j - Circuit Breaker] Activado en ms-reasignacion. Registro guardado como FALLIDO. Error: ${e.message}`);
+      alert(`[Resilience4j - Circuit Breaker] Error en reasignación automática: ${e.message}`);
     } finally {
       setProcesando(null);
     }
@@ -63,6 +119,7 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
   };
 
   const calcularEdad = (fechaNacStr: string) => {
+    if (!fechaNacStr) return 0;
     const nacimiento = new Date(fechaNacStr);
     const dif = Date.now() - nacimiento.getTime();
     const edadFecha = new Date(dif);
@@ -80,7 +137,7 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
 
   return (
     <div className="rn-dashboard animate-fade-in">
-      {/* ⚡ Controles de Simulación de Microservicios */}
+      {/* ⚡ Panel Informativo de Resiliencia Real */}
       <div className="rn-card animate-fade-in" style={{
         background: 'linear-gradient(135deg, hsl(var(--card)), hsl(var(--muted)/0.3))',
         borderLeft: '4px solid hsl(var(--primary))',
@@ -96,77 +153,69 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
           <Database size={24} style={{ color: 'hsl(var(--primary))' }} />
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
-              Panel de Simulación de Resiliencia (Resilience4j)
+              Portal de Integración de Pacientes (BFF)
             </h3>
             <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', margin: 0 }}>
-              Simula fallos en la comunicación inter-servicios para probar el comportamiento de Circuit Breakers.
+              Orquestación en tiempo real a través del API Gateway. Resiliencia monitoreada con Circuit Breakers.
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {/* Selector de Pacientes */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className="rn-label" style={{ margin: 0 }}>Paciente:</span>
-            <select
-              value={selectedPacienteRut}
-              onChange={(e) => setSelectedPacienteRut(e.target.value)}
-              className="rn-select"
-              style={{ padding: '0.4rem 1.75rem 0.4rem 0.75rem', fontSize: '0.875rem', minWidth: '180px' }}
-            >
-              {pacientes.map((p) => (
-                <option key={p.rut} value={p.rut}>
-                  {p.nombres.split(' ')[0]} {p.apellidos.split(' ')[0]} ({p.rut})
-                </option>
-              ))}
-            </select>
+        {/* Solo mostrar selector si es administrador o médico */}
+        {userRole !== 'ROLE_PACIENTE' && pacientes.length > 0 && (
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span className="rn-label" style={{ margin: 0 }}>Visualizar Paciente:</span>
+              <select
+                value={selectedPacienteRut}
+                onChange={(e) => setSelectedPacienteRut(e.target.value)}
+                className="rn-select"
+                style={{ padding: '0.4rem 1.75rem 0.4rem 0.75rem', fontSize: '0.875rem', minWidth: '180px' }}
+              >
+                {pacientes.map((p) => (
+                  <option key={p.rut} value={p.rut}>
+                    {p.nombres.split(' ')[0]} {p.apellidos.split(' ')[0]} ({p.rut})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-
-          {/* Interruptor de Caída */}
-          <label style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            cursor: 'pointer',
-            padding: '0.4rem 0.75rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: simularFalloConexion ? 'hsl(var(--danger) / 0.12)' : 'hsl(var(--muted) / 0.5)',
-            border: `1px solid ${simularFalloConexion ? 'hsl(var(--danger) / 0.3)' : 'hsl(var(--border))'}`,
-            transition: 'all 0.2s ease',
-            userSelect: 'none'
-          }}>
-            <input
-              type="checkbox"
-              checked={simularFalloConexion}
-              onChange={(e) => setSimularFalloConexion(e.target.checked)}
-              style={{ cursor: 'pointer' }}
-            />
-            <span style={{
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              color: simularFalloConexion ? 'hsl(var(--danger))' : 'hsl(var(--muted-foreground))'
-            }}>
-              Simular Caída ms-listas-espera
-            </span>
-          </label>
-        </div>
+        )}
       </div>
 
-      {/* ⚠️ Alerta de Circuit Breaker Activo */}
-      {simularFalloConexion && (
-        <div className="rn-alert rn-alert-warning animate-fade-in">
+      {/* ⚠️ Alertas de Circuit Breaker / Falla Real */}
+      {isBffFallback && (
+        <div className="rn-alert rn-alert-warning animate-fade-in" style={{ marginBottom: '1.5rem' }}>
           <ShieldAlert size={20} style={{ color: 'hsl(var(--warning))', flexShrink: 0 }} />
           <div>
-            <strong style={{ fontWeight: 700 }}>Modo Degradado / Simulación Offline Activa:</strong>
+            <strong style={{ fontWeight: 700 }}>Resilience4j Circuit Breaker (BFF Degradado):</strong>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', opacity: 0.9 }}>
-              La conexión entre <code>ms-reasignacion</code>/<code>ms-portal-paciente</code> y <code>ms-listas-espera</code> está cortada.
-              Cualquier reasignación activará el <strong>Circuit Breaker en estado ABIERTO</strong>, y el sistema utilizará la lógica del método de fallback.
+              {bffFallbackMsg}
             </p>
           </div>
         </div>
       )}
 
-      {pacienteActivo ? (
+      {citasError && (
+        <div className="rn-alert rn-alert-danger animate-fade-in" style={{ marginBottom: '1.5rem' }}>
+          <ShieldAlert size={20} style={{ color: 'hsl(var(--danger))', flexShrink: 0 }} />
+          <div>
+            <strong style={{ fontWeight: 700 }}>Servicio No Disponible (Error HTTP 503):</strong>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', opacity: 0.9 }}>
+              {citasError}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {loadingCitas && (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <RefreshCw size={24} className="animate-spin text-primary" style={{ margin: '0 auto 0.5rem' }} />
+          <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>Sincronizando información médica...</p>
+        </div>
+      )}
+
+      {!loadingCitas && pacienteActivo ? (
         <div className="rn-grid-cols-3" style={{ gap: '1.5rem', gridTemplateColumns: '1fr 2fr' }}>
           {/* 👤 Columna Izquierda: Ficha Clínica del Paciente */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -199,7 +248,7 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
                     padding: '0.25rem 0.75rem',
                     fontWeight: 700
                   }}>
-                    {pacienteActivo.prevision}
+                    {pacienteActivo.prevision || 'FONASA'}
                   </span>
                 </div>
               </div>
@@ -210,9 +259,11 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
                   <div>
                     <div className="rn-label" style={{ fontSize: '0.6875rem' }}>Identificación</div>
                     <div style={{ fontWeight: 600 }}>{pacienteActivo.rut}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
-                      {calcularEdad(pacienteActivo.fechaNacimiento)} años ({pacienteActivo.fechaNacimiento})
-                    </div>
+                    {pacienteActivo.fechaNacimiento && (
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                        {calcularEdad(pacienteActivo.fechaNacimiento)} años ({pacienteActivo.fechaNacimiento})
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -276,7 +327,7 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
                 Estado de Consultas y Solicitudes Pendientes
               </h3>
 
-              {simularFalloConexion ? (
+              {isBffFallback ? (
                 // Vista de Fallback del Portal (BFF Resilience)
                 <div style={{
                   padding: '2rem 1.5rem',
@@ -290,10 +341,10 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
                     Servicio Temporalmente Interrumpido
                   </h4>
                   <p style={{ fontSize: '0.8125rem', color: 'hsl(var(--muted-foreground))', maxWidth: '380px', margin: '0 auto' }}>
-                    [Circuit Breaker Fallback] No pudimos sincronizar tus citas médicas con <code>ms-listas-espera</code> de forma remota. Por favor, reintenta más tarde.
+                    {bffFallbackMsg}
                   </p>
                 </div>
-              ) : citasPaciente.length === 0 ? (
+              ) : citas.length === 0 ? (
                 <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>
                   <Calendar size={36} style={{ margin: '0 auto 0.75rem', display: 'block', opacity: 0.5 }} />
                   <h4 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'hsl(var(--foreground))' }}>
@@ -303,7 +354,7 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {citasPaciente.map((cita) => (
+                  {citas.map((cita) => (
                     <div key={cita.id} style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -415,9 +466,11 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
           </div>
         </div>
       ) : (
-        <div className="rn-card" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
-          No hay pacientes registrados.
-        </div>
+        !loadingCitas && (
+          <div className="rn-card" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+            No hay información para mostrar del paciente seleccionado.
+          </div>
+        )
       )}
     </div>
   );
