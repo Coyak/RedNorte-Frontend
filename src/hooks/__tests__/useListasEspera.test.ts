@@ -49,7 +49,7 @@ describe('useListasEspera Hook', () => {
       loginRes = await result.current.login('drhouse', 'password123');
     });
 
-    expect(api.post).toHaveBeenCalledWith('/auth/login', { username: 'drhouse', password: 'password123' });
+    expect(api.post).toHaveBeenCalledWith('/api/v1/auth/login', { username: 'drhouse', password: 'password123' });
     expect(loginRes).toEqual(mockLoginResponse.data);
     expect(result.current.token).toBe('fake-jwt-token');
     expect(result.current.userRole).toBe('ROLE_MEDICO');

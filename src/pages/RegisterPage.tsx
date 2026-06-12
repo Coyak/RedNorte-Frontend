@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { HeartPulse, UserPlus, ShieldAlert, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { HeartPulse, UserPlus, ShieldAlert, RefreshCw, CheckCircle2, Moon, Sun } from 'lucide-react';
 import api from '../services/api';
 
 export const RegisterPage: React.FC = () => {
@@ -11,6 +11,18 @@ export const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') || 'light';
+  });
+
+  // Cambiar tema
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,204 +65,162 @@ export const RegisterPage: React.FC = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(160deg, hsl(220, 70%, 5%) 0%, hsl(200, 60%, 10%) 50%, hsl(220, 70%, 5%) 100%)',
+      background: 'linear-gradient(135deg, hsl(var(--background)), hsl(var(--muted)/0.4))',
       padding: '1.5rem',
-      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif'
+      position: 'relative',
+      transition: 'all 0.3s ease'
     }}>
-      {/* Glow */}
-      <div style={{
-        position: 'fixed', top: '30%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '600px', height: '400px',
-        background: 'radial-gradient(ellipse, rgba(59,130,246,0.14) 0%, transparent 70%)',
-        pointerEvents: 'none'
-      }} />
+      {/* Botón de alternancia de tema */}
+      <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
+        <button
+          onClick={toggleTheme}
+          className="rn-btn rn-btn-icon"
+          style={{
+            borderRadius: '9999px',
+            width: '36px',
+            height: '36px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title={theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}
+        >
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+        </button>
+      </div>
 
-      <div style={{
-        width: '100%', maxWidth: '440px',
-        background: 'rgba(255,255,255,0.04)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.09)',
-        borderRadius: '20px',
+      <div className="rn-card animate-fade-in" style={{
+        maxWidth: '420px',
+        width: '100%',
         padding: '2.5rem 2rem',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
-        position: 'relative', zIndex: 1
+        backgroundColor: 'hsl(var(--card) / 0.85)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid hsl(var(--border))',
+        boxShadow: 'var(--shadow-xl)',
+        borderRadius: 'var(--radius-2xl)'
       }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        {/* Encabezado */}
+        <div style={{ textAlign: 'center', marginBottom: '2.25rem' }}>
           <div style={{
-            width: '64px', height: '64px', borderRadius: '18px',
-            background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: '1.25rem',
-            boxShadow: '0 8px 24px rgba(59,130,246,0.35)'
+            width: '64px',
+            height: '64px',
+            borderRadius: 'var(--radius-xl)',
+            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+            color: 'white',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '1rem',
+            boxShadow: '0 8px 24px hsl(var(--primary)/0.25)'
           }}>
-            <HeartPulse size={30} color="white" />
+            <HeartPulse size={32} />
           </div>
-          <h1 style={{
-            fontSize: '1.625rem', fontWeight: 900, color: 'white',
-            letterSpacing: '-0.03em', margin: '0 0 0.375rem'
-          }}>
-            Crear Cuenta
-          </h1>
-          <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Crear Cuenta</h2>
+          <p style={{ fontSize: '0.8125rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
             Únete a la red de salud pública RedNorte
           </p>
         </div>
 
-        {/* Success */}
+        {/* Éxito */}
         {success && (
-          <div style={{
-            background: 'rgba(16,185,129,0.1)',
-            border: '1px solid rgba(16,185,129,0.25)',
-            borderRadius: '12px', padding: '1rem',
-            display: 'flex', alignItems: 'center', gap: '0.75rem',
-            marginBottom: '1.5rem', color: '#6ee7b7', fontSize: '0.875rem'
-          }}>
-            <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
-            ¡Cuenta creada exitosamente! Redirigiendo al inicio de sesión...
+          <div className="rn-alert rn-alert-success" style={{ padding: '0.75rem', fontSize: '0.8125rem', marginBottom: '1.25rem' }}>
+            <CheckCircle2 size={16} style={{ flexShrink: 0, marginTop: '0.125rem' }} />
+            <div>¡Cuenta creada exitosamente! Redirigiendo al inicio de sesión...</div>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div style={{
-            background: 'rgba(239,68,68,0.1)',
-            border: '1px solid rgba(239,68,68,0.25)',
-            borderRadius: '12px', padding: '0.875rem',
-            display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
-            marginBottom: '1.5rem', color: '#fca5a5', fontSize: '0.875rem'
-          }}>
-            <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '0.1rem' }} />
-            {error}
+          <div className="rn-alert rn-alert-warning" style={{ padding: '0.75rem', fontSize: '0.8125rem', marginBottom: '1.25rem' }}>
+            <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '0.125rem' }} />
+            <div>{error}</div>
           </div>
         )}
 
-        {/* Form */}
+        {/* Formulario */}
         {!success && (
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1.125rem' }}>
-              <label style={{
-                display: 'block', color: 'rgba(255,255,255,0.7)',
-                fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem'
-              }}>
-                Nombre de usuario
-              </label>
+            <div className="rn-form-group">
+              <label className="rn-label">Nombre de usuario</label>
               <input
                 type="text"
+                className="rn-input"
+                placeholder="ej: juan.perez"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="ej: juan.perez"
                 disabled={loading}
                 required
-                style={{
-                  width: '100%', padding: '0.75rem 1rem',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '10px', color: 'white',
-                  fontSize: '0.9375rem', outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'border-color 0.2s ease'
-                }}
               />
             </div>
 
-            <div style={{ marginBottom: '1.125rem' }}>
-              <label style={{
-                display: 'block', color: 'rgba(255,255,255,0.7)',
-                fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem'
-              }}>
-                Contraseña
-              </label>
+            <div className="rn-form-group">
+              <label className="rn-label">Contraseña</label>
               <input
                 type="password"
+                className="rn-input"
+                placeholder="Mínimo 6 caracteres"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
                 disabled={loading}
                 required
-                style={{
-                  width: '100%', padding: '0.75rem 1rem',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '10px', color: 'white',
-                  fontSize: '0.9375rem', outline: 'none',
-                  boxSizing: 'border-box'
-                }}
               />
             </div>
 
-            <div style={{ marginBottom: '1.75rem' }}>
-              <label style={{
-                display: 'block', color: 'rgba(255,255,255,0.7)',
-                fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem'
-              }}>
-                Confirmar contraseña
-              </label>
+            <div className="rn-form-group" style={{ marginBottom: '1.75rem' }}>
+              <label className="rn-label">Confirmar contraseña</label>
               <input
                 type="password"
+                className="rn-input"
+                placeholder="Repite tu contraseña"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Repite tu contraseña"
                 disabled={loading}
                 required
-                style={{
-                  width: '100%', padding: '0.75rem 1rem',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '10px', color: 'white',
-                  fontSize: '0.9375rem', outline: 'none',
-                  boxSizing: 'border-box'
-                }}
               />
             </div>
 
             <button
               type="submit"
+              className="rn-btn rn-btn-primary"
+              style={{ width: '100%', padding: '0.75rem', fontSize: '0.9375rem', marginBottom: '1.75rem' }}
               disabled={loading}
-              style={{
-                width: '100%', padding: '0.875rem',
-                background: loading ? 'rgba(59,130,246,0.5)' : 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-                border: 'none', borderRadius: '12px', color: 'white',
-                fontSize: '0.9375rem', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                boxShadow: '0 4px 20px rgba(59,130,246,0.3)',
-                transition: 'all 0.2s ease'
-              }}
             >
               {loading ? (
-                <><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Registrando...</>
+                <>
+                  <RefreshCw size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                  Registrando...
+                </>
               ) : (
-                <><UserPlus size={16} /> Crear Cuenta</>
+                <>
+                  <UserPlus size={16} />
+                  Crear Cuenta
+                </>
               )}
             </button>
           </form>
         )}
 
-        {/* Footer links */}
-        <div style={{ textAlign: 'center', marginTop: '1.75rem' }}>
-          <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.45)', margin: '0 0 0.5rem' }}>
+        {/* Enlace de Inicio de Sesión */}
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <span style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
             ¿Ya tienes una cuenta?{' '}
-            <Link to="/login" style={{
-              color: '#60a5fa', fontWeight: 700, textDecoration: 'none'
-            }}>
+            <Link
+              to="/login"
+              style={{ color: 'hsl(var(--primary))', fontWeight: 700, textDecoration: 'none' }}
+            >
               Iniciar Sesión
             </Link>
-          </p>
-          <Link to="/" style={{
-            fontSize: '0.8125rem', color: 'rgba(255,255,255,0.35)',
-            textDecoration: 'none'
-          }}>
-            ← Volver al inicio
-          </Link>
+          </span>
+          <div style={{ marginTop: '1rem' }}>
+            <Link to="/" style={{
+              fontSize: '0.8125rem', color: 'hsl(var(--muted-foreground))',
+              textDecoration: 'none'
+            }}>
+              ← Volver al inicio
+            </Link>
+          </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        input::placeholder { color: rgba(255,255,255,0.25); }
-        input:focus { border-color: rgba(59,130,246,0.5) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-      `}</style>
     </div>
   );
 };
