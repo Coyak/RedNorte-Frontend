@@ -176,7 +176,7 @@ export function useListasEspera() {
       
       return res.data;
     } catch (err: any) {
-      const errMsg = err.response?.data?.message || 'Credenciales inválidas';
+      const errMsg = err.response?.data?.message || err.message || 'Credenciales inválidas';
       setError(errMsg);
       throw new Error(errMsg);
     } finally {
