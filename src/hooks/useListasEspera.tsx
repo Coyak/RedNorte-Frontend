@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import api from '../services/api';
 
 // Interfaces del Dominio
@@ -68,7 +68,7 @@ export function mapAtencion(a: any): AtencionBase {
   };
 }
 
-export function useListasEspera() {
+export function useListasEsperaState() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [atenciones, setAtenciones] = useState<AtencionBase[]>([]);
   const [reasignaciones, setReasignaciones] = useState<Reasignacion[]>([]);
@@ -342,4 +342,25 @@ export function useListasEspera() {
     resetearDatos,
     refreshData
   };
+}
+
+export type ListasEsperaContextType = ReturnType<typeof useListasEsperaState>;
+
+const ListasEsperaContext = createContext<ListasEsperaContextType | null>(null);
+
+export const ListasEsperaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const value = useListasEsperaState();
+  return (
+    <ListasEsperaContext.Provider value={value}>
+      {children}
+    </ListasEsperaContext.Provider>
+  );
+};
+
+export function useListasEspera() {
+  const context = useContext(ListasEsperaContext);
+  if (!context) {
+    throw new Error('useListasEspera must be used within a ListasEsperaProvider');
+  }
+  return context;
 }

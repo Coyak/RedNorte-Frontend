@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useListasEspera, mapAtencion } from '../useListasEspera';
+import { useListasEsperaState as useListasEspera, mapAtencion } from '../useListasEspera';
 import api from '../../services/api';
 
 // Mock del servicio API Axios
@@ -158,7 +158,7 @@ describe('useListasEspera Hook', () => {
 
     const { result } = renderHook(() => useListasEspera());
 
-    let res;
+    let res: any;
     await act(async () => {
       res = await result.current.registrarPaciente(nuevoPaciente);
     });
@@ -190,7 +190,7 @@ describe('useListasEspera Hook', () => {
 
     const { result } = renderHook(() => useListasEspera());
 
-    let res;
+    let res: any;
     await act(async () => {
       res = await result.current.registrarAtencion('123', 'CONSULTA', 3, 'Pediatría');
     });
@@ -219,7 +219,7 @@ describe('useListasEspera Hook', () => {
 
     const { result } = renderHook(() => useListasEspera());
 
-    let res;
+    let res: any;
     await act(async () => {
       res = await result.current.actualizarEstadoAtencion(8, 'AGENDADO');
     });
@@ -240,7 +240,7 @@ describe('useListasEspera Hook', () => {
 
     const { result } = renderHook(() => useListasEspera());
 
-    let res;
+    let res: any;
     await act(async () => {
       res = await result.current.cancelarYReasignar(20);
     });
@@ -299,7 +299,7 @@ describe('useListasEspera Hook', () => {
 
     const { result } = renderHook(() => useListasEspera());
 
-    let res;
+    let res: any;
     await act(async () => {
       res = await result.current.obtenerCitasPaciente('123');
     });
@@ -316,7 +316,7 @@ describe('useListasEspera Hook', () => {
 
     const { result } = renderHook(() => useListasEspera());
 
-    let res;
+    let res: any;
     await act(async () => {
       res = await result.current.obtenerCitasPaciente('123');
     });
@@ -331,7 +331,7 @@ describe('useListasEspera Hook', () => {
 
     const { result } = renderHook(() => useListasEspera());
 
-    let res;
+    let res: any;
     await act(async () => {
       res = await result.current.obtenerPerfilPaciente('123');
     });
