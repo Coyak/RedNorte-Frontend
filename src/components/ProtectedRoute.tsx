@@ -21,11 +21,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     
     // Redireccionar al dashboard correspondiente según el rol del usuario conectado
     if (userRole === 'ROLE_MEDICO') {
-      return <Navigate to="/medico" replace />;
+      return <Navigate to="/app/medico" replace />;
     } else if (userRole === 'ROLE_PACIENTE') {
-      return <Navigate to="/paciente" replace />;
+      return <Navigate to="/app/paciente" replace />;
     } else if (userRole === 'ROLE_ADMIN') {
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/app/admin" replace />;
     } else {
       return <Navigate to="/login" replace />;
     }

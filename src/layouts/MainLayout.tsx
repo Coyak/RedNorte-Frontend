@@ -59,8 +59,8 @@ export const MainLayout: React.FC = () => {
           gap: '1rem'
         }}>
           {/* Logo y Branding */}
-          <div 
-            onClick={() => navigate('/')} 
+          <div
+            onClick={() => navigate('/app')}
             style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
           >
             <div style={{
@@ -103,7 +103,7 @@ export const MainLayout: React.FC = () => {
           <nav style={{ display: 'flex', gap: '0.375rem' }}>
             {userRole !== 'ROLE_PACIENTE' && (
               <NavLink
-                to="/medico"
+                to="/app/medico"
                 className={({ isActive }) => `rn-btn ${isActive ? 'active-nav-link' : ''}`}
                 style={({ isActive }) => ({
                   backgroundColor: isActive ? 'hsl(var(--primary) / 0.1)' : 'transparent',
@@ -119,7 +119,7 @@ export const MainLayout: React.FC = () => {
             )}
 
             <NavLink
-              to="/paciente"
+              to="/app/paciente"
               className={({ isActive }) => `rn-btn ${isActive ? 'active-nav-link' : ''}`}
               style={({ isActive }) => ({
                 backgroundColor: isActive ? 'hsl(var(--primary) / 0.1)' : 'transparent',
@@ -135,7 +135,7 @@ export const MainLayout: React.FC = () => {
 
             {userRole === 'ROLE_ADMIN' && (
               <NavLink
-                to="/admin"
+                to="/app/admin"
                 className={({ isActive }) => `rn-btn ${isActive ? 'active-nav-link' : ''}`}
                 style={({ isActive }) => ({
                   backgroundColor: isActive ? 'hsl(var(--primary) / 0.1)' : 'transparent',
