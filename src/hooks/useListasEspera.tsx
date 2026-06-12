@@ -158,7 +158,7 @@ export function useListasEsperaState() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.post('/auth/login', { username: user, password: pass });
+      const res = await api.post('/api/v1/auth/login', { username: user, password: pass });
       const { token: jwtToken, role, username: resUser } = res.data;
       
       localStorage.setItem('rednorte_jwt_token', jwtToken);
