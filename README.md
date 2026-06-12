@@ -72,7 +72,14 @@ Sigue estos sencillos pasos para instalar, ejecutar y probar los componentes en 
 ### 1. Requisitos Previos
 Asegúrate de contar con **Node.js** (versión 18 o superior recomendada) y **npm** instalados.
 
-### 2. Instalación de Dependencias
+### 2. Configuración de Variables de Entorno
+Para el desarrollo local y la conexión con el API Gateway y los microservicios Spring Boot, se emplean variables de entorno. Puedes crear un archivo `.env` en la raíz del proyecto configurado de la siguiente manera:
+```env
+VITE_API_URL=http://localhost:8080
+```
+*(Nota: Este archivo `.env` contiene configuraciones de entorno específicas de desarrollo y no se incluye en el control de versiones, estando convenientemente listado en el archivo `.gitignore` del proyecto).*
+
+### 3. Instalación de Dependencias
 Abre tu terminal en la raíz de la carpeta `RedNorte-frontend` y ejecuta:
 ```bash
 npm install
