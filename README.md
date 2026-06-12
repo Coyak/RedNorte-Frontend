@@ -1,176 +1,165 @@
-# 🏥 Plataforma RedNorte - Biblioteca de Componentes Frontend
+# Plataforma RedNorte — Frontend 🏥
 
-Este proyecto constituye la interfaz y la **biblioteca de componentes reutilizables** del Frontend de la **Plataforma RedNorte**, un sistema inteligente de gestión de listas de espera hospitalarias diseñado para mejorar el rendimiento, mitigar cancelaciones de citas y dotar de transparencia a los pacientes de la red pública.
+**RedNorte Frontend** es la interfaz de usuario de la Plataforma Inteligente para la Gestión de Listas de Espera Hospitalarias del **Servicio Público de Salud RedNorte**. Su propósito es proveer a pacientes, médicos y administradores una experiencia digital moderna, fluida e intuitiva para interactuar con todos los microservicios del backend.
 
-En cumplimiento con las directrices técnicas del examen, todos los componentes han sido construidos como **módulos NPM altamente reutilizables** utilizando **React**, **TypeScript**, **Vite (en Library Mode)** y **Custom CSS** con variables HSL dinámicas.
+Implementado como una **biblioteca de componentes React** (Library Mode con Vite), todo el código está estructurado bajo el patrón **Container / Presenter**, con cobertura de pruebas garantizada mediante **Vitest (≥ 85%)** y comunicación con el backend mediante el API Gateway a través de **Axios con interceptores JWT**.
 
 ---
 
-## 🚀 Características Clave
+## 🗺️ Páginas y Rutas de la Aplicación
 
-1.  **Módulo NPM Reutilizable (Library Mode)**: Configurado para compilarse en múltiples formatos de distribución (**ES Modules** y **UMD**) generando automáticamente sus archivos de definición de tipos TypeScript (`.d.ts`), permitiendo que cualquier hospital o centro médico de la red pública instale e integre estos componentes mediante un simple `npm install @rednorte/ui`.
-2.  **Portal del Paciente (BFF Dashboard)**: Panel interactivo que consolida la ficha médica del paciente, su previsión de salud (FONASA, ISAPRE, etc.) y la visualización cronológica de sus citas médicas derivables.
-3.  **Consola de Lista de Espera**: Tabla interactiva premium para la gestión administrativa de derivaciones, que permite filtrar por especialidad, orden de prioridad médica de gravedad y realizar reasignaciones instantáneas en caso de cancelaciones.
-4.  **Simulador Integrado de Circuit Breaker (Resilience4j)**: Permite simular caídas de conexión con el backend (API Gateway o ms-listas-espera) mediante un interruptor para validar visualmente cómo responde el frontend ante fallas, mostrando estados degradados y fallbacks gráciles en tiempo real.
-5.  **Diseño Visual Premium**: Interfaz moderna y adaptativa que incluye animaciones sutiles, transiciones fluidas, tipografía Plus Jakarta Sans y un **selector dinámico de temas Claro / Oscuro** basado en variables HSL puras.
+| Ruta | Página | Acceso | Descripción |
+|---|---|---|---|
+| `/` | `HomePage` | Público | Landing Page de presentación del servicio RedNorte con CTA de registro e inicio de sesión |
+| `/login` | `LoginPage` | Público | Formulario de inicio de sesión. Redirige automáticamente según el rol del usuario |
+| `/register` | `RegisterPage` | Público | Formulario para crear una cuenta nueva como paciente |
+| `/medico` | `ListaEsperaContainer` | ROLE_MEDICO, ROLE_ADMIN | Consola de gestión de la lista de espera hospitalaria con reasignación automática |
+| `/paciente` | `CitasDashboardContainer` | ROLE_PACIENTE, ROLE_MEDICO, ROLE_ADMIN | Portal del paciente: consulta de citas, historial y previsión de salud |
+| `/admin` | `AdminDashboardPage` | ROLE_ADMIN | Dashboard de administración con historial completo de reasignaciones del sistema |
+
+---
+
+## 👤 Roles de Usuario
+
+El sistema maneja 3 roles distintos con accesos diferenciados:
+
+| Rol | Acceso a |
+|---|---|
+| `ROLE_ADMIN` | Todas las páginas: `/medico`, `/paciente`, `/admin` |
+| `ROLE_MEDICO` | Consola de lista de espera (`/medico`) y portal del paciente (`/paciente`) |
+| `ROLE_PACIENTE` | Portal personal de citas (`/paciente`) |
+
+> Al iniciar sesión, la aplicación detecta el rol del JWT y redirige automáticamente a la sección correspondiente.
 
 ---
 
 ## 📂 Estructura del Proyecto
 
-El código fuente está rigurosamente organizado siguiendo principios de mantenibilidad y modularidad:
-
 ```
 RedNorte-frontend/
-├── dist/                     # Carpeta final de distribución (NPM Bundle generado en el build)
-├── public/                   # Archivos estáticos públicos
 ├── src/
-│   ├── components/           # Presenters: Componentes visuales puros y reactivos
-│   │   ├── ListaEsperaTable.tsx  # Tabla de lista de espera (solo render y estados UI)
-│   │   ├── CitasDashboard.tsx    # Portal del Paciente (solo render)
-│   │   └── index.ts              # Exportador de componentes
-│   ├── containers/           # Containers: Componentes inteligentes de estado y llamadas asíncronas
-│   │   ├── ListaEsperaContainer.tsx  # Contenedor de estado para la lista de espera
-│   │   ├── CitasDashboardContainer.tsx # Contenedor de estado para el portal de pacientes
-│   │   └── index.ts              # Exportador de contenedores
-│   ├── hooks/                # Lógica de negocio y llamadas a la API
-│   │   └── useListasEspera.ts    # Manejo de estado asíncrono y motor de reasignación
-│   ├── styles/               # Sistema de diseño con variables HSL
-│   │   └── main.css              # Estilos premium CSS responsivos y temas claro/oscuro
-│   ├── App.tsx               # Showcase de desarrollo local (Demo interactiva con Containers)
-│   ├── index.ts              # Punto de entrada principal para exportaciones de la biblioteca NPM
-│   └── main.tsx              # Inicialización local de React
-├── package.json              # Configuración del paquete NPM (exports, scripts y dependencias)
-├── vite.config.ts            # Compilación en Modo Librería y generación de tipos (.d.ts)
-└── tsconfig.json             # Ajustes de tipado de TypeScript
+│   ├── pages/                    # Páginas completas de la aplicación
+│   │   ├── HomePage.tsx              # Landing Page con glassmorphism y animaciones
+│   │   ├── LoginPage.tsx             # Inicio de sesión con JWT y redirección por rol
+│   │   ├── RegisterPage.tsx          # Registro de nuevos pacientes
+│   │   └── AdminDashboardPage.tsx    # Panel de administración
+│   ├── components/               # Presenters: componentes visuales puros
+│   │   ├── ListaEsperaTable.tsx      # Tabla premium de gestión de atenciones
+│   │   ├── CitasDashboard.tsx        # Portal del paciente (render)
+│   │   ├── ProtectedRoute.tsx        # HOC de autorización por rol
+│   │   └── index.ts
+│   ├── containers/               # Smart components con lógica asíncrona
+│   │   ├── ListaEsperaContainer.tsx  # Gestiona estado de atenciones y reasignaciones
+│   │   └── CitasDashboardContainer.tsx # Gestiona estado del portal BFF
+│   ├── hooks/
+│   │   └── useListasEspera.tsx       # Hook y Context global: auth, datos, API calls
+│   ├── services/
+│   │   └── api.ts                    # Instancia Axios con interceptores JWT
+│   ├── layouts/
+│   │   └── MainLayout.tsx            # Layout base con navegación para rutas protegidas
+│   ├── styles/
+│   │   └── main.css                  # Sistema de diseño HSL, variables CSS y temas
+│   ├── App.tsx                   # Enrutador principal (React Router)
+│   └── main.tsx                  # Punto de entrada React
+├── vite.config.ts                # Configuración Vite: Library Mode + Vitest (>85%)
+└── package.json                  # Scripts NPM y dependencias
 ```
 
 ---
 
-## 🏗️ Patrón de Arquitectura: Container / Presenter
+## 🏗️ Arquitectura: Patrón Container / Presenter
 
-Para cumplir con las directrices de la evaluación, el frontend está estructurado estrictamente bajo el patrón **Container / Presenter** (componentes inteligentes/tontos). Esto permite una separación de responsabilidades clara y profesional:
+La aplicación sigue estrictamente este patrón para separar responsabilidades:
 
-- **Contenedores (`src/containers/`)**:
-  - Son los componentes *Smart*. Tienen acceso a los custom hooks (`useListasEspera`) y realizan la orquestación de llamadas asíncronas hacia el BFF y la API.
-  - Manejan los estados de carga específicos (`buscando`, `loadingCitas`, `procesando`) y el control local de errores de la API.
-  - Inyectan datos y funciones de callback formateadas hacia los componentes visuales mediante props.
-  - **Archivos**: [ListaEsperaContainer.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/containers/ListaEsperaContainer.tsx) y [CitasDashboardContainer.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/containers/CitasDashboardContainer.tsx).
-
-- **Presentadores (`src/components/`)**:
-  - Son los componentes *Dumb*. Su única función es pintar la interfaz basándose en las props recibidas y notificar interacciones del usuario mediante callbacks.
-  - No hacen llamadas directas a hooks globales, no manejan bloques try-catch asíncronos para operaciones ni realizan peticiones HTTP.
-  - Únicamente mantienen estados de UI visuales locales de interacción (como filtros de ordenamiento, términos de búsqueda o visualización modal).
-  - **Archivos**: [ListaEsperaTable.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/components/ListaEsperaTable.tsx) y [CitasDashboard.tsx](file:///c:/Users/Angel/Documents/Duoc/Fullstack%20III/Ev3/Rednorte/RedNorte-frontend/src/components/CitasDashboard.tsx).
+- **Contenedores** (`src/containers/`): Componentes *inteligentes*. Conectados al hook `useListasEspera`, realizan peticiones HTTP y orquestan el estado. Inyectan datos y callbacks a los Presenters.
+- **Presentadores** (`src/components/`): Componentes *pasivos*. Solo pintan la interfaz según las props recibidas. No realizan peticiones directas a la API.
 
 ---
 
-## 🛠️ Guía de Uso Local y Desarrollo
+## 🔗 Integración con el Backend
 
-Sigue estos sencillos pasos para instalar, ejecutar y probar los componentes en aislamiento en tu máquina:
+Toda la comunicación con el backend pasa por el **API Gateway** (`http://localhost:8080`). El servicio `api.ts` usa interceptores de Axios para:
 
-### 1. Requisitos Previos
-Asegúrate de contar con **Node.js** (versión 18 o superior recomendada) y **npm** instalados.
+1. **Request Interceptor**: Inyecta automáticamente el token JWT desde `localStorage` en cada petición.
+2. **Response Interceptor**: Si detecta un `401 Unauthorized`, limpia las credenciales del `localStorage` para forzar un nuevo login.
 
-### 2. Configuración de Variables de Entorno
-Para el desarrollo local y la conexión con el API Gateway y los microservicios Spring Boot, se emplean variables de entorno. Puedes crear un archivo `.env` en la raíz del proyecto configurado de la siguiente manera:
-```env
-VITE_API_URL=http://localhost:8080
-```
-*(Nota: Este archivo `.env` contiene configuraciones de entorno específicas de desarrollo y no se incluye en el control de versiones, estando convenientemente listado en el archivo `.gitignore` del proyecto).*
+### Endpoints consumidos
 
-### 3. Instalación de Dependencias
-Abre tu terminal en la raíz de la carpeta `RedNorte-frontend` y ejecuta:
+| Acción | Endpoint | Microservicio destino |
+|---|---|---|
+| Login | `POST /api/v1/auth/login` | ms-usuarios |
+| Registro | `POST /api/v1/auth/register` | ms-usuarios |
+| Lista de espera | `GET /api/listas-espera/atenciones` | ms-listas-espera |
+| Registrar atención | `POST /api/listas-espera/atenciones` | ms-listas-espera |
+| Reasignar | `POST /api/reasignacion/procesar/{id}` | ms-reasignacion |
+| Portal paciente | `GET /api/portal-paciente/perfil/{rut}` | ms-portal-paciente |
+| Estadísticas | `GET /api/v1/auditoria/estadisticas` | ms-auditoria |
+
+---
+
+## 🚀 Instrucciones de Desarrollo Local
+
+### Requisitos
+- Node.js 18+ y npm instalados
+- Backend (`RedNorte-backend`) corriendo con Docker o localmente
+
+### 1. Instalar dependencias
 ```bash
 npm install
 ```
-*Este comando descargará e instalará todas las dependencias necesarias de desarrollo y de interfaz (incluyendo `lucide-react` para iconos y `vite-plugin-dts` para el compilado de tipos).*
 
-### 3. Ejecutar Entorno de Desarrollo Local
-Para levantar el servidor local y visualizar la interfaz interactiva de componentes en tu navegador, ejecuta:
+### 2. Configurar variables de entorno
+Crea un archivo `.env` en la raíz del proyecto:
+```env
+VITE_API_URL=http://localhost:8080
+```
+
+### 3. Levantar el servidor de desarrollo
 ```bash
 npm run dev
 ```
-La consola te indicará el puerto local asignado (típicamente `http://localhost:5173`). Abre esa URL para interactuar en vivo con:
--   La tabla de administración de listas de espera.
--   El simulador de perfiles del portal de pacientes (BFF).
--   El simulador de caídas de conexión y logs de auditoría del motor de reasignaciones.
--   La alternancia del modo claro/oscuro en tiempo real.
+La aplicación estará disponible en [http://localhost:5173](http://localhost:5173).
+
+### 4. Flujo de usuario recomendado
+1. Visita `http://localhost:5173` → Landing Page de RedNorte
+2. Haz clic en **"Registrarme"** para crear una cuenta de paciente
+3. O usa las **cuentas de demostración** en `/login`:
+
+| Usuario | Contraseña | Rol |
+|---|---|---|
+| `admin` | `admin123` | Administrador |
+| `medico` | `medico123` | Médico Asistencial |
+| `paciente` | `paciente123` | Paciente |
 
 ---
 
-## 📦 Compilación y Generación del Paquete NPM
+## 🧪 Testing con Vitest (Cobertura ≥ 85%)
 
-Para compilar la biblioteca y prepararla para ser publicada en un registro NPM privado o distribuida de manera local, ejecuta:
+```bash
+# Ejecutar todas las pruebas
+npm test
+
+# Generar reporte de cobertura
+npm run test:coverage
+```
+
+Los umbrales de cobertura están configurados estrictamente en `vite.config.ts`:
+- **Lines**: ≥ 85%
+- **Functions**: ≥ 85%
+- **Branches**: ≥ 85%
+- **Statements**: ≥ 85%
+
+---
+
+## 📦 Compilar para Producción / Distribución NPM
+
 ```bash
 npm run build
 ```
 
-Una vez completado de forma exitosa, se creará el directorio `/dist` con la siguiente estructura lista para distribución:
-*   `dist/rednorte-frontend.js`: El bundle empaquetado optimizado en formato **ES Modules** (`import`).
-*   `dist/rednorte-frontend.umd.cjs`: El bundle de compatibilidad universal en formato **UMD** (`require`).
-*   `dist/index.d.ts`: Archivo autogenerado con la definición de todos los tipos y declaraciones TypeScript de la biblioteca.
-*   `dist/index.css`: Archivo CSS unificado y minificado con el sistema de diseño completo de RedNorte.
+Genera en `/dist`:
+- `rednorte-frontend.js` — Bundle ES Module
+- `rednorte-frontend.umd.cjs` — Bundle UMD (compatibilidad universal)
+- `dist/src/index.d.ts` — Tipos TypeScript autogenerados
 
----
-
-## 🧩 Ejemplos Prácticos de Consumo
-
-Una vez compilado o publicado el paquete, cualquier desarrollador del equipo de RedNorte puede consumir la biblioteca en una aplicación externa de la siguiente forma:
-
-### Importar Estilos
-En el archivo de entrada de tu aplicación (ej: `main.jsx` o `index.js`):
-```javascript
-import '@rednorte/ui/dist/index.css';
-```
-
-### Usar el Hook de Lógica y los Componentes UI
-En tu componente React:
-```tsx
-import { 
-  ListaEsperaTable, 
-  CitasDashboard, 
-  useListasEspera 
-} from '@rednorte/ui';
-
-function DashboardHospital() {
-  const { 
-    atenciones, 
-    pacientes, 
-    reasignaciones, 
-    actualizarEstadoAtencion, 
-    cancelarYReasignar 
-  } = useListasEspera();
-
-  return (
-    <div className="container">
-      <h2>Panel Administrativo RedNorte</h2>
-      
-      {/* 1. Tabla de gestión de listas de espera */}
-      <ListaEsperaTable 
-        atenciones={atenciones}
-        onActualizarEstado={actualizarEstadoAtencion}
-        onCancelarYReasignar={cancelarYReasignar}
-      />
-      
-      {/* 2. Portal BFF de Pacientes */}
-      <CitasDashboard 
-        pacientes={pacientes}
-        atenciones={atenciones}
-        reasignaciones={reasignaciones}
-        onCancelarYReasignar={cancelarYReasignar}
-        onActualizarEstado={actualizarEstadoAtencion}
-      />
-    </div>
-  );
-}
-```
-
----
-
-## 🛡️ Integración con Microservicios Reales
-El hook `useListasEspera.ts` centraliza las mutaciones de datos del frontend. Para conectar esta biblioteca al API Gateway real (`http://localhost:8080`), basta con reescribir las funciones internas del hook (`registrarPaciente`, `registrarAtencion`, `cancelarYReasignar`, etc.) reemplazando el estado local de LocalStorage con peticiones HTTP asíncronas (`fetch` o `axios`) apuntando a las rutas del Gateway:
-*   `/api/listas-espera/pacientes`
-*   `/api/listas-espera/atenciones`
-*   `/api/reasignacion/procesar/{id}`
-*   `/api/portal-paciente/perfil`
+El paquete puede instalarse en otros proyectos del ecosistema RedNorte como `@rednorte/ui`.

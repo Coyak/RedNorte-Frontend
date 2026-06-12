@@ -208,6 +208,19 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Enlace de Registro */}
+        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+          <span style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>
+            ¿No tienes cuenta?{' '}
+            <a
+              href="/register"
+              style={{ color: 'hsl(var(--primary))', fontWeight: 700, textDecoration: 'none' }}
+            >
+              Regístrate aquí
+            </a>
+          </span>
+        </div>
       </div>
     </div>
   );

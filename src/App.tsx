@@ -4,6 +4,8 @@ import { ListasEsperaProvider, useListasEspera } from './hooks/useListasEspera';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MainLayout } from './layouts/MainLayout';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { HomePage } from './pages/HomePage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { ListaEsperaContainer } from './containers/ListaEsperaContainer';
 import { CitasDashboardContainer } from './containers/CitasDashboardContainer';
@@ -32,8 +34,10 @@ function App() {
     <ListasEsperaProvider>
       <BrowserRouter>
         <Routes>
-          {/* Ruta Pública */}
+          {/* Rutas Públicas */}
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
           {/* Rutas Protegidas bajo MainLayout */}
           <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
