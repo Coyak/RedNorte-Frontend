@@ -10,23 +10,14 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { ListaEsperaContainer } from './containers/ListaEsperaContainer';
 import { CitasDashboardContainer } from './containers/CitasDashboardContainer';
 
-// Componente auxiliar para redirección dinámica basada en roles
-const HomeRedirect: React.FC = () => {
-  const { userRole, token } = useListasEspera();
+// Redirige a la sección correcta según el rol del usuario autenticado
+const DashboardRedirect: React.FC = () => {
+  const { userRole } = useListasEspera();
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (userRole === 'ROLE_MEDICO') {
-    return <Navigate to="/medico" replace />;
-  } else if (userRole === 'ROLE_PACIENTE') {
-    return <Navigate to="/paciente" replace />;
-  } else if (userRole === 'ROLE_ADMIN') {
-    return <Navigate to="/admin" replace />;
-  } else {
-    return <Navigate to="/login" replace />;
-  }
+  if (userRole === 'ROLE_MEDICO') return <Navigate to="/app/medico" replace />;
+  if (userRole === 'ROLE_PACIENTE') return <Navigate to="/app/paciente" replace />;
+  if (userRole === 'ROLE_ADMIN') return <Navigate to="/app/admin" replace />;
+  return <Navigate to="/login" replace />;
 };
 
 function App() {
@@ -34,48 +25,55 @@ function App() {
     <ListasEsperaProvider>
       <BrowserRouter>
         <Routes>
-          {/* Rutas Públicas */}
+          {/* ── Rutas Públicas ── */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Rutas Protegidas bajo MainLayout */}
-          <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-            {/* Índice: Redirección dinámica según el rol */}
-            <Route index element={<HomeRedirect />} />
+          {/* ── Rutas Protegidas bajo /app (evita colisión con la Landing Page) ── */}
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Índice: redirige automáticamente al panel del rol */}
+            <Route index element={<DashboardRedirect />} />
 
-            {/* Consola del Médico (Gestión de lista de espera) */}
-            <Route 
-              path="medico" 
+            {/* Consola del Médico */}
+            <Route
+              path="medico"
               element={
                 <ProtectedRoute allowedRoles={['ROLE_MEDICO', 'ROLE_ADMIN']}>
                   <ListaEsperaContainer />
                 </ProtectedRoute>
-              } 
+              }
             />
 
-            {/* Portal del Paciente (Dashboard BFF) */}
-            <Route 
-              path="paciente" 
+            {/* Portal del Paciente */}
+            <Route
+              path="paciente"
               element={
                 <ProtectedRoute allowedRoles={['ROLE_PACIENTE', 'ROLE_MEDICO', 'ROLE_ADMIN']}>
                   <CitasDashboardContainer />
                 </ProtectedRoute>
-              } 
+              }
             />
 
-            {/* Consola de Administración (Historial de reasignación) */}
-            <Route 
-              path="admin" 
+            {/* Consola de Administración */}
+            <Route
+              path="admin"
               element={
                 <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
                   <AdminDashboardPage />
                 </ProtectedRoute>
-              } 
+              }
             />
           </Route>
 
-          {/* Redirección por defecto a la raíz */}
+          {/* Cualquier ruta desconocida → Landing Page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

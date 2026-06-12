@@ -25,11 +25,11 @@ export const LoginPage: React.FC = () => {
   // Si ya está autenticado, redirigir dinámicamente según el rol
   if (token && userRole) {
     if (userRole === 'ROLE_MEDICO') {
-      return <Navigate to="/medico" replace />;
+      return <Navigate to="/app/medico" replace />;
     } else if (userRole === 'ROLE_PACIENTE') {
-      return <Navigate to="/paciente" replace />;
+      return <Navigate to="/app/paciente" replace />;
     } else if (userRole === 'ROLE_ADMIN') {
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/app/admin" replace />;
     }
   }
 
@@ -45,13 +45,13 @@ export const LoginPage: React.FC = () => {
       // Al loguearse exitosamente, redirigir por rol
       const role = res.role;
       if (role === 'ROLE_MEDICO') {
-        navigate('/medico');
+        navigate('/app/medico');
       } else if (role === 'ROLE_PACIENTE') {
-        navigate('/paciente');
+        navigate('/app/paciente');
       } else if (role === 'ROLE_ADMIN') {
-        navigate('/admin');
+        navigate('/app/admin');
       } else {
-        navigate('/paciente');
+        navigate('/app/paciente');
       }
     } catch (err: any) {
       // El error ya lo maneja el hook, pero lo capturamos
