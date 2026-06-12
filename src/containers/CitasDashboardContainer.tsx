@@ -1,29 +1,45 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Paciente, AtencionBase, Reasignacion } from '../hooks/useListasEspera';
+import { useListasEspera, Paciente, Reasignacion } from '../hooks/useListasEspera';
 import { CitasDashboard } from '../components/CitasDashboard';
 
 export interface CitasDashboardContainerProps {
-  pacientes: Paciente[];
-  userRole: string | null;
-  currentUserRut: string | null;
-  reasignaciones: Reasignacion[];
-  onCancelarYReasignar: (id: number) => Promise<any>;
-  obtenerCitasPaciente: (rut: string) => Promise<any>;
-  obtenerPerfilPaciente: (rut: string) => Promise<any>;
+  pacientes?: Paciente[];
+  userRole?: string | null;
+  currentUserRut?: string | null;
+  reasignaciones?: Reasignacion[];
+  onCancelarYReasignar?: (id: number) => Promise<any>;
+  obtenerCitasPaciente?: (rut: string) => Promise<any>;
+  obtenerPerfilPaciente?: (rut: string) => Promise<any>;
 }
 
 export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = ({
-  pacientes,
-  userRole,
-  currentUserRut,
-  reasignaciones,
-  onCancelarYReasignar,
-  obtenerCitasPaciente,
-  obtenerPerfilPaciente
+  pacientes: pacientesProp,
+  userRole: userRoleProp,
+  currentUserRut: currentUserRutProp,
+  reasignaciones: reasignacionesProp,
+  onCancelarYReasignar: onCancelarYReasignarProp,
+  obtenerCitasPaciente: obtenerCitasPacienteProp,
+  obtenerPerfilPaciente: obtenerPerfilPacienteProp
 }) => {
+  // Intentar obtener el contexto global (producción), si no está disponible (tests) usar props
+  let context: any = null;
+  try {
+    context = useListasEspera();
+  } catch (e) {
+    // Modo de pruebas/tests sin ListasEsperaProvider
+  }
+
+  const pacientes: Paciente[] = pacientesProp ?? context?.pacientes ?? [];
+  const userRole = userRoleProp ?? context?.userRole ?? null;
+  const currentUserRut = currentUserRutProp ?? context?.userRut ?? null;
+  const reasignaciones: Reasignacion[] = reasignacionesProp ?? context?.reasignaciones ?? [];
+  const onCancelarYReasignar = onCancelarYReasignarProp ?? context?.cancelarYReasignar;
+  const obtenerCitasPaciente = obtenerCitasPacienteProp ?? context?.obtenerCitasPaciente;
+  const obtenerPerfilPaciente = obtenerPerfilPacienteProp ?? context?.obtenerPerfilPaciente;
+
   const [selectedPacienteRut, setSelectedPacienteRut] = useState<string>('');
   const [pacienteActivo, setPacienteActivo] = useState<Paciente | null>(null);
-  const [citas, setCitas] = useState<AtencionBase[]>([]);
+  const [citas, setCitas] = useState<any[]>([]);
   const [loadingCitas, setLoadingCitas] = useState(false);
   const [citasError, setCitasError] = useState<string | null>(null);
   const [isBffFallback, setIsBffFallback] = useState(false);
@@ -41,7 +57,7 @@ export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = (
 
   // Load patient data and appointments from BFF
   const cargarDatosPaciente = useCallback(async (rut: string) => {
-    if (!rut) return;
+    if (!rut || !obtenerPerfilPaciente || !obtenerCitasPaciente) return;
     setLoadingCitas(true);
     setCitasError(null);
     setIsBffFallback(false);
@@ -59,12 +75,12 @@ export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = (
 
       // 2. Fetch appointments from BFF (portal-paciente orquestador)
       const res = await obtenerCitasPaciente(rut);
-      if (res.isFallback) {
+      if (res && res.isFallback) {
         setIsBffFallback(true);
         setBffFallbackMsg(res.mensaje);
         setCitas([]);
-      } else {
-        setCitas(res.data);
+      } else if (res) {
+        setCitas(res.data || []);
       }
     } catch (err: any) {
       console.error('Error in portal communication:', err);
@@ -87,6 +103,7 @@ export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = (
   }, [selectedPacienteRut, cargarDatosPaciente]);
 
   const handleCancelarCita = async (id: number) => {
+    if (!onCancelarYReasignar) return;
     setProcesando(id);
     try {
       await onCancelarYReasignar(id);
