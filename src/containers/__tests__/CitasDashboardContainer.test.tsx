@@ -190,4 +190,87 @@ describe('CitasDashboardContainer', () => {
     
     expect(screen.getByText('Juan Carlos')).toBeInTheDocument();
   });
+
+  test('debe retornar temprano en handleCancelarCita si onCancelarYReasignar no está presente', async () => {
+    const propsWithoutCancel = {
+      ...defaultProps,
+      onCancelarYReasignar: undefined
+    };
+
+    render(<CitasDashboardContainer {...propsWithoutCancel} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Cancelar Hora' })).toBeInTheDocument();
+    });
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancelar Hora' });
+    await userEvent.click(cancelBtn);
+
+    expect(propsWithoutCancel.obtenerCitasPaciente).toHaveBeenCalledTimes(1);
+  });
+
+  test('debe usar citas vacías si obtenerCitasPaciente retorna null', async () => {
+    const propsWithNullCitas = {
+      ...defaultProps,
+      obtenerCitasPaciente: vi.fn(() => Promise.resolve(null as any))
+    };
+
+    render(<CitasDashboardContainer {...propsWithNullCitas} />);
+
+    await waitFor(() => {
+      expect(propsWithNullCitas.obtenerCitasPaciente).toHaveBeenCalledWith('12345678-9');
+    });
+  });
+
+  test('debe usar citas vacías si obtenerCitasPaciente retorna res sin data', async () => {
+    const propsWithoutCitasData = {
+      ...defaultProps,
+      obtenerCitasPaciente: vi.fn(() => Promise.resolve({ isFallback: false } as any))
+    };
+
+    render(<CitasDashboardContainer {...propsWithoutCitasData} />);
+
+    await waitFor(() => {
+      expect(propsWithoutCitasData.obtenerCitasPaciente).toHaveBeenCalledWith('12345678-9');
+    });
+  });
+
+  test('debe manejar error sin message en obtenerCitasPaciente', async () => {
+    const propsWithEmptyError = {
+      ...defaultProps,
+      obtenerCitasPaciente: vi.fn(() => Promise.reject({}))
+    };
+
+    render(<CitasDashboardContainer {...propsWithEmptyError} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Error de conexión con el API Gateway / BFF')).toBeInTheDocument();
+    });
+  });
+
+  test('debe retornar temprano en cargarDatosPaciente si obtenerPerfilPaciente no está definido', async () => {
+    const propsNoProfileFunc = {
+      ...defaultProps,
+      obtenerPerfilPaciente: undefined
+    };
+    render(<CitasDashboardContainer {...propsNoProfileFunc} />);
+    expect(defaultProps.obtenerCitasPaciente).not.toHaveBeenCalled();
+  });
+
+  test('debe setear pacienteActivo a null si obtenerPerfilPaciente falla y el paciente no está en la lista local', async () => {
+    const propsFailedProfileNoLocal = {
+      ...defaultProps,
+      userRole: 'ROLE_PACIENTE',
+      currentUserRut: '98765432-1',
+      pacientes: [],
+      obtenerPerfilPaciente: vi.fn(() => Promise.reject(new Error('Servicio caído')))
+    };
+
+    render(<CitasDashboardContainer {...propsFailedProfileNoLocal} />);
+    await waitFor(() => {
+      expect(propsFailedProfileNoLocal.obtenerPerfilPaciente).toHaveBeenCalledWith('98765432-1');
+    });
+    expect(screen.queryByText('Juan Carlos')).not.toBeInTheDocument();
+  });
 });
+

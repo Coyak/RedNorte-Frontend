@@ -1,6 +1,7 @@
+import React from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { useListasEsperaState as useListasEspera, mapAtencion } from '../useListasEspera';
+import { renderHook, act, waitFor, render, screen } from '@testing-library/react';
+import { useListasEsperaState as useListasEspera, mapAtencion, useListasEspera as useListasEsperaHook, ListasEsperaProvider } from '../useListasEspera';
 import api from '../../services/api';
 
 // Mock del servicio API Axios
@@ -503,5 +504,27 @@ describe('useListasEspera Hook', () => {
     await act(async () => {
       await expect(result.current.obtenerCitasPaciente('123')).rejects.toThrow('503 Service Unavailable');
     });
+  });
+
+  test('useListasEspera debe lanzar error si se usa fuera de ListasEsperaProvider', () => {
+    expect(() => renderHook(() => useListasEsperaHook())).toThrow('useListasEspera must be used within a ListasEsperaProvider');
+  });
+
+  test('ListasEsperaProvider debe proveer el contexto a los componentes hijos', () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [] });
+    
+    const TestComponent = () => {
+      const context = useListasEsperaHook();
+      return React.createElement('div', null, `Role: ${context.userRole || 'none'}`);
+    };
+
+    render(
+      React.createElement(
+        ListasEsperaProvider,
+        null,
+        React.createElement(TestComponent)
+      )
+    );
+    expect(screen.getByText('Role: none')).toBeInTheDocument();
   });
 });

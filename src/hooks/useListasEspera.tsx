@@ -159,14 +159,16 @@ export function useListasEsperaState() {
     setError(null);
     try {
       const res = await api.post('/api/v1/auth/login', { username: user, password: pass });
-      const { token: jwtToken, role, username: resUser } = res.data;
+      const { token: jwtToken, role, username: resUser, rut: resRut } = res.data;
       
       localStorage.setItem('rednorte_jwt_token', jwtToken);
       localStorage.setItem('rednorte_user_role', role);
       localStorage.setItem('rednorte_username', resUser);
       
-      // If role is patient, default rut to '12345678-9'
-      const rut = role === 'ROLE_PACIENTE' ? '12345678-9' : '';
+      let rut = resRut || '';
+      if (!rut && role === 'ROLE_PACIENTE') {
+        rut = '12345678-9';
+      }
       localStorage.setItem('rednorte_rut', rut);
       
       setToken(jwtToken);
@@ -315,6 +317,55 @@ export function useListasEsperaState() {
     return res.data;
   };
 
+  // 8. Actualizar perfil del paciente en el portal
+  const actualizarPerfilPaciente = async (rut: string, perfil: Paciente) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.put(`/api/portal-paciente/perfil/${rut}`, perfil);
+      await fetchPacientes();
+      return res.data;
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Error al actualizar perfil';
+      setError(errMsg);
+      throw new Error(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 9. Obtener todos los usuarios registrados (ms-usuarios)
+  const obtenerUsuariosSistema = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get('/api/v1/usuarios');
+      return res.data;
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Error al obtener usuarios';
+      setError(errMsg);
+      throw new Error(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 10. Obtener estadísticas de prioridad (ms-auditoria)
+  const obtenerEstadisticasAuditoria = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get('/api/v1/auditoria/estadisticas');
+      return res.data;
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Error al obtener estadísticas';
+      setError(errMsg);
+      throw new Error(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Restablecer datos / Refrescar desde DB
   const resetearDatos = async () => {
     await refreshData();
@@ -339,6 +390,9 @@ export function useListasEsperaState() {
     obtenerListaEspera,
     obtenerCitasPaciente,
     obtenerPerfilPaciente,
+    actualizarPerfilPaciente,
+    obtenerUsuariosSistema,
+    obtenerEstadisticasAuditoria,
     resetearDatos,
     refreshData
   };
