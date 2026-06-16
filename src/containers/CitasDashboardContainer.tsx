@@ -10,6 +10,7 @@ export interface CitasDashboardContainerProps {
   onCancelarYReasignar?: (id: number) => Promise<any>;
   obtenerCitasPaciente?: (rut: string) => Promise<any>;
   obtenerPerfilPaciente?: (rut: string) => Promise<any>;
+  onActualizarPerfil?: (rut: string, perfil: Paciente) => Promise<any>;
 }
 
 export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = ({
@@ -19,7 +20,8 @@ export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = (
   reasignaciones: reasignacionesProp,
   onCancelarYReasignar: onCancelarYReasignarProp,
   obtenerCitasPaciente: obtenerCitasPacienteProp,
-  obtenerPerfilPaciente: obtenerPerfilPacienteProp
+  obtenerPerfilPaciente: obtenerPerfilPacienteProp,
+  onActualizarPerfil: onActualizarPerfilProp
 }) => {
   // Intentar obtener el contexto global (producción), si no está disponible (tests) usar props
   let context: any = null;
@@ -36,6 +38,7 @@ export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = (
   const onCancelarYReasignar = onCancelarYReasignarProp ?? context?.cancelarYReasignar;
   const obtenerCitasPaciente = obtenerCitasPacienteProp ?? context?.obtenerCitasPaciente;
   const obtenerPerfilPaciente = obtenerPerfilPacienteProp ?? context?.obtenerPerfilPaciente;
+  const onActualizarPerfil = onActualizarPerfilProp ?? context?.actualizarPerfilPaciente;
 
   const [selectedPacienteRut, setSelectedPacienteRut] = useState<string>('');
   const [pacienteActivo, setPacienteActivo] = useState<Paciente | null>(null);
@@ -136,6 +139,7 @@ export const CitasDashboardContainer: React.FC<CitasDashboardContainerProps> = (
       procesando={procesando}
       onCancelarCita={handleCancelarCita}
       reasignacionesPaciente={reasignacionesPaciente}
+      onActualizarPerfil={onActualizarPerfil}
     />
   );
 };

@@ -229,4 +229,17 @@ describe('ListaEsperaTable', () => {
 
     expect(screen.getByText('No se encontraron registros')).toBeInTheDocument();
   });
+
+  test('debe deshabilitar botones y mostrar estado de carga cuando buscando es true', () => {
+    render(<ListaEsperaTable {...defaultProps} buscando={true} />);
+
+    const reasignarButton = screen.getByRole('button', { name: 'Reasignar' }) as HTMLButtonElement;
+    expect(reasignarButton).toBeDisabled();
+
+    const agendarButtons = screen.getAllByRole('button', { name: 'Agendando' });
+    expect(agendarButtons.length).toBeGreaterThan(0);
+    agendarButtons.forEach(btn => {
+      expect(btn).toBeDisabled();
+    });
+  });
 });

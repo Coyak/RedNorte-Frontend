@@ -19,6 +19,7 @@ export interface CitasDashboardProps {
   procesando: number | null;
   onCancelarCita: (id: number) => void;
   reasignacionesPaciente: Reasignacion[];
+  onActualizarPerfil?: (rut: string, perfil: Paciente) => Promise<any>;
 }
 
 export const CitasDashboard: React.FC<CitasDashboardProps> = ({
@@ -34,8 +35,45 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
   bffFallbackMsg,
   procesando,
   onCancelarCita,
-  reasignacionesPaciente
+  reasignacionesPaciente,
+  onActualizarPerfil
 }) => {
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState<Paciente>({
+    rut: '',
+    nombres: '',
+    apellidos: '',
+    fechaNacimiento: '',
+    direccion: '',
+    telefono: '',
+    correo: '',
+    prevision: 'FONASA',
+    historialClinicoBasico: ''
+  });
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleAbrirEditarModal = () => {
+    if (!pacienteActivo) return;
+    setEditForm({ ...pacienteActivo });
+    setEditError(null);
+    setShowEditModal(true);
+  };
+
+  const handleGuardarPerfil = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onActualizarPerfil || !pacienteActivo) return;
+    setSubmittingEdit(true);
+    setEditError(null);
+    try {
+      await onActualizarPerfil(pacienteActivo.rut, editForm);
+      setShowEditModal(false);
+    } catch (err: any) {
+      setEditError(err.message || 'Error al guardar cambios.');
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
 
   const formatearFecha = (fechaStr: string) => {
     const fecha = new Date(fechaStr);
@@ -224,6 +262,16 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
                     <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{pacienteActivo.direccion}</div>
                   </div>
                 </div>
+
+                {onActualizarPerfil && (
+                  <button
+                    onClick={handleAbrirEditarModal}
+                    className="rn-btn rn-btn-secondary"
+                    style={{ width: '100%', marginTop: '0.5rem', fontSize: '0.8125rem', padding: '0.5rem' }}
+                  >
+                    Editar Información
+                  </button>
+                )}
               </div>
             </div>
 
@@ -401,6 +449,116 @@ export const CitasDashboard: React.FC<CitasDashboardProps> = ({
             No hay información para mostrar del paciente seleccionado.
           </div>
         )
+      )}
+
+      {/* 📦 MODAL: EDITAR INFORMACIÓN DEL PACIENTE */}
+      {showEditModal && (
+        <div className="rn-modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="rn-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
+                Editar Mi Información de Paciente
+              </h3>
+              <button 
+                onClick={() => setShowEditModal(false)} 
+                className="rn-btn rn-btn-icon"
+                style={{ padding: '0.25rem' }}
+              >
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            {editError && (
+              <div className="rn-alert rn-alert-warning" style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', marginBottom: '1rem' }}>
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleGuardarPerfil}>
+              <div className="rn-form-group">
+                <label className="rn-label">Dirección Particular *</label>
+                <input
+                  type="text"
+                  className="rn-input"
+                  value={editForm.direccion}
+                  onChange={(e) => setEditForm({ ...editForm, direccion: e.target.value })}
+                  required
+                  disabled={submittingEdit}
+                />
+              </div>
+
+              <div className="rn-grid-cols-2" style={{ gap: '0.75rem' }}>
+                <div className="rn-form-group">
+                  <label className="rn-label">Teléfono de Contacto</label>
+                  <input
+                    type="text"
+                    className="rn-input"
+                    value={editForm.telefono || ''}
+                    onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })}
+                    disabled={submittingEdit}
+                  />
+                </div>
+
+                <div className="rn-form-group">
+                  <label className="rn-label">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    className="rn-input"
+                    value={editForm.correo || ''}
+                    onChange={(e) => setEditForm({ ...editForm, correo: e.target.value })}
+                    disabled={submittingEdit}
+                  />
+                </div>
+              </div>
+
+              <div className="rn-form-group">
+                <label className="rn-label">Previsión Médica *</label>
+                <select
+                  className="rn-select"
+                  value={editForm.prevision}
+                  onChange={(e) => setEditForm({ ...editForm, prevision: e.target.value as any })}
+                  required
+                  disabled={submittingEdit}
+                >
+                  <option value="FONASA">FONASA</option>
+                  <option value="ISAPRE">ISAPRE</option>
+                  <option value="PARTICULAR">PARTICULAR</option>
+                  <option value="DIPRECA">DIPRECA</option>
+                  <option value="CAPREDENA">CAPREDENA</option>
+                </select>
+              </div>
+
+              <div className="rn-form-group">
+                <label className="rn-label">Ficha / Historial Clínico Básico</label>
+                <textarea
+                  className="rn-textarea"
+                  rows={3}
+                  value={editForm.historialClinicoBasico || ''}
+                  onChange={(e) => setEditForm({ ...editForm, historialClinicoBasico: e.target.value })}
+                  disabled={submittingEdit}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="rn-btn rn-btn-secondary"
+                  disabled={submittingEdit}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rn-btn rn-btn-primary"
+                  disabled={submittingEdit}
+                >
+                  {submittingEdit ? <RefreshCw size={14} className="animate-spin" /> : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -180,4 +180,59 @@ describe('CitasDashboard', () => {
 
     expect(screen.getByText('No se registran eventos de reasignación automática para este paciente en el sistema de salud.')).toBeInTheDocument();
   });
+
+  test('debe abrir modal de edición, modificar campos y guardar cambios con éxito', async () => {
+    const onActualizarPerfilMock = vi.fn(() => Promise.resolve());
+    render(
+      <CitasDashboard {...defaultProps} onActualizarPerfil={onActualizarPerfilMock} />
+    );
+
+    const editBtn = screen.getByRole('button', { name: 'Editar Información' });
+    await userEvent.click(editBtn);
+
+    expect(screen.getByText('Editar Mi Información de Paciente')).toBeInTheDocument();
+
+    const addressInput = screen.getByDisplayValue('Av. Libertador 123');
+    await userEvent.clear(addressInput);
+    await userEvent.type(addressInput, 'Nueva Dirección 123');
+
+    const saveBtn = screen.getByRole('button', { name: 'Guardar Cambios' });
+    await userEvent.click(saveBtn);
+
+    expect(onActualizarPerfilMock).toHaveBeenCalledWith('12345678-9', expect.objectContaining({
+      direccion: 'Nueva Dirección 123'
+    }));
+
+    expect(screen.queryByText('Editar Mi Información de Paciente')).not.toBeInTheDocument();
+  });
+
+  test('debe manejar error de API al fallar onActualizarPerfil', async () => {
+    const onActualizarPerfilMock = vi.fn(() => Promise.reject(new Error('Error al actualizar')));
+    render(
+      <CitasDashboard {...defaultProps} onActualizarPerfil={onActualizarPerfilMock} />
+    );
+
+    const editBtn = screen.getByRole('button', { name: 'Editar Información' });
+    await userEvent.click(editBtn);
+
+    const saveBtn = screen.getByRole('button', { name: 'Guardar Cambios' });
+    await userEvent.click(saveBtn);
+
+    expect(await screen.findByText('Error al actualizar')).toBeInTheDocument();
+  });
+
+  test('debe cerrar modal de edición al hacer clic en cancelar', async () => {
+    const onActualizarPerfilMock = vi.fn(() => Promise.resolve());
+    render(
+      <CitasDashboard {...defaultProps} onActualizarPerfil={onActualizarPerfilMock} />
+    );
+
+    const editBtn = screen.getByRole('button', { name: 'Editar Información' });
+    await userEvent.click(editBtn);
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancelar' });
+    await userEvent.click(cancelBtn);
+
+    expect(screen.queryByText('Editar Mi Información de Paciente')).not.toBeInTheDocument();
+  });
 });
