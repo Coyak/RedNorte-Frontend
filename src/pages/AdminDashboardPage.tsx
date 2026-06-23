@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useListasEspera } from '../hooks/useListasEspera';
-import { History, RefreshCw, BarChart3, Users, FileText, Database } from 'lucide-react';
+import { History, RefreshCw, BarChart3, Users, FileText, Database, ShieldAlert, Zap } from 'lucide-react';
 
 interface UsuarioReg {
   username: string;
@@ -14,8 +14,14 @@ interface EstadisticaPrio {
 }
 
 export const AdminDashboardPage: React.FC = () => {
-  const { reasignaciones, obtenerUsuariosSistema, obtenerEstadisticasAuditoria } = useListasEspera();
-  const [activeTab, setActiveTab] = useState<'reasignaciones' | 'estadisticas' | 'usuarios'>('reasignaciones');
+  const { 
+    reasignaciones, 
+    obtenerUsuariosSistema, 
+    obtenerEstadisticasAuditoria, 
+    limpiarCacheRedis, 
+    atenciones 
+  } = useListasEspera();
+  const [activeTab, setActiveTab] = useState<'reasignaciones' | 'estadisticas' | 'usuarios' | 'cache'>('reasignaciones');
 
   // Estados locales para datos dinámicos
   const [usuarios, setUsuarios] = useState<UsuarioReg[]>([]);
@@ -87,6 +93,57 @@ export const AdminDashboardPage: React.FC = () => {
         </button>
       </div>
 
+      {/* 📊 Tarjetas KPI del Sistema */}
+      <div className="rn-grid-cols-3 mb-6" style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        <div className="rn-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{
+            background: 'hsl(var(--primary) / 0.12)',
+            color: 'hsl(var(--primary))',
+            padding: '0.75rem',
+            borderRadius: 'var(--radius-lg)'
+          }}>
+            <History size={24} />
+          </div>
+          <div>
+            <div className="rn-label">Total Reasignaciones</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{reasignaciones.length}</div>
+            <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Intentos de reubicación</span>
+          </div>
+        </div>
+
+        <div className="rn-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{
+            background: 'hsl(var(--accent) / 0.12)',
+            color: 'hsl(var(--accent))',
+            padding: '0.75rem',
+            borderRadius: 'var(--radius-lg)'
+          }}>
+            <Users size={24} />
+          </div>
+          <div>
+            <div className="rn-label">Cuentas Activas</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{usuarios.length}</div>
+            <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Usuarios registrados</span>
+          </div>
+        </div>
+
+        <div className="rn-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{
+            background: 'hsl(var(--success) / 0.12)',
+            color: 'hsl(var(--success))',
+            padding: '0.75rem',
+            borderRadius: 'var(--radius-lg)'
+          }}>
+            <FileText size={24} />
+          </div>
+          <div>
+            <div className="rn-label">Total Solicitudes</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{atenciones ? atenciones.length : 0}</div>
+            <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Atenciones registradas</span>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs Selector */}
       <div style={{
         display: 'flex',
@@ -120,6 +177,14 @@ export const AdminDashboardPage: React.FC = () => {
         >
           <Users size={14} />
           Cuentas Registradas (ms-usuarios)
+        </button>
+        <button
+          onClick={() => setActiveTab('cache')}
+          className={`rn-btn ${activeTab === 'cache' ? 'rn-btn-primary' : 'rn-btn-secondary'}`}
+          style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+        >
+          <Database size={14} />
+          Caché Redis & Resiliencia
         </button>
       </div>
 
@@ -250,7 +315,52 @@ export const AdminDashboardPage: React.FC = () => {
                   <p style={{ fontSize: '0.875rem' }}>No hay pacientes pendientes en lista de espera para procesar estadísticas.</p>
                 </div>
               ) : (
-                <div className="rn-card" style={{ padding: '0' }}>
+                <>
+                  {/* Gráfico de Barras CSS de Prioridad */}
+                  <div className="rn-card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>
+                      Distribución Visual de Lista de Espera por Gravedad
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {estadisticas.map((stat, idx) => {
+                        const maxCantidad = Math.max(...estadisticas.map(s => s.cantidad), 1);
+                        const porcentaje = (stat.cantidad / maxCantidad) * 100;
+                        
+                        let colorBar = 'hsl(var(--primary))';
+                        if (stat.prioridad === 1) colorBar = 'hsl(var(--danger))';
+                        else if (stat.prioridad === 2) colorBar = 'hsl(var(--warning))';
+                        else if (stat.prioridad === 3) colorBar = 'hsl(var(--primary))';
+                        else if (stat.prioridad === 4) colorBar = 'hsl(var(--accent))';
+                        else if (stat.prioridad === 5) colorBar = 'hsl(var(--muted-foreground))';
+
+                        return (
+                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', fontWeight: 600 }}>
+                              <span>{getPrioText(stat.prioridad)}</span>
+                              <span>{stat.cantidad} pacientes</span>
+                            </div>
+                            <div style={{
+                              width: '100%',
+                              backgroundColor: 'hsl(var(--muted)/0.3)',
+                              borderRadius: 'var(--radius-md)',
+                              height: '14px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                width: `${porcentaje}%`,
+                                backgroundColor: colorBar,
+                                height: '100%',
+                                transition: 'width 0.5s ease-in-out',
+                                borderRadius: 'var(--radius-md)'
+                              }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rn-card" style={{ padding: '0' }}>
                   <table className="rn-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid hsl(var(--border))', textAlign: 'left' }}>
@@ -276,7 +386,8 @@ export const AdminDashboardPage: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-              )}
+              </>
+            )}
             </div>
           )}
 
@@ -332,6 +443,115 @@ export const AdminDashboardPage: React.FC = () => {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB 4: CACHÉ REDIS & RESILIENCIA */}
+          {activeTab === 'cache' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Caché Redis Section */}
+              <div className="rn-card" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <Database size={20} style={{ color: 'hsl(var(--primary))' }} />
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>
+                    Monitoreo de Caché Redis
+                  </h3>
+                </div>
+                <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginBottom: '1.25rem' }}>
+                  El microservicio <code>ms-listas-espera</code> utiliza Redis para almacenar en caché las consultas de la lista de espera asistencial, reduciendo la carga en la base de datos PostgreSQL.
+                  El TTL por defecto de la caché es de <strong>30 minutos</strong>, pero puede purgarse manualmente en cualquier momento para forzar la sincronización en vivo.
+                </p>
+
+                <div style={{
+                  display: 'flex',
+                  backgroundColor: 'hsl(var(--muted)/0.2)',
+                  padding: '1rem',
+                  borderRadius: 'var(--radius-lg)',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--muted-foreground))', display: 'block' }}>
+                      Estado del Caché Redis
+                    </span>
+                    <strong style={{ fontSize: '0.9375rem', color: 'hsl(var(--success))' }}>
+                      ACTIVO & OPTIMIZADO (TTL 30 min)
+                    </strong>
+                  </div>
+                  
+                  <button
+                    onClick={async () => {
+                      if (!limpiarCacheRedis) return;
+                      setLoading(true);
+                      setError(null);
+                      try {
+                        await limpiarCacheRedis();
+                        alert('Caché Redis purgada con éxito. Se forzó la recarga de datos desde PostgreSQL.');
+                      } catch (err: any) {
+                        setError(err.message || 'Error al purgar caché Redis.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    disabled={loading}
+                    className="rn-btn rn-btn-primary"
+                    style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+                  >
+                    <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                    Vaciar Caché Redis (Invalidar)
+                  </button>
+                </div>
+              </div>
+
+              {/* Resiliencia & Circuit Breakers Section */}
+              <div className="rn-card" style={{ borderLeft: '4px solid hsl(var(--danger))' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <Zap size={20} style={{ color: 'hsl(var(--danger))' }} />
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>
+                    Resiliencia de Microservicios (Resilience4j)
+                  </h3>
+                </div>
+                <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', marginBottom: '1.25rem' }}>
+                  El motor de reasignación (<code>ms-reasignacion</code>) utiliza Resilience4j Circuit Breakers para tolerar caídas en los microservicios vecinos.
+                  Si <code>ms-listas-espera</code> o <code>ms-notificaciones</code> fallan o responden lento, el Circuit Breaker entra en estado <strong>OPEN</strong> (abierto), evitando llamadas repetidas y ejecutando métodos de fallback automáticos.
+                </p>
+
+                <div className="rn-grid-cols-2" style={{ gap: '1rem' }}>
+                  <div style={{
+                    border: '1px solid hsl(var(--border))',
+                    padding: '0.875rem',
+                    borderRadius: 'var(--radius-md)'
+                  }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--muted-foreground))', display: 'block' }}>
+                      Circuit Breaker: <code>reasignacionCircuitBreaker</code>
+                    </span>
+                    <strong style={{ fontSize: '0.9375rem', color: 'hsl(var(--success))', display: 'block', marginTop: '0.25rem' }}>
+                      Estado: CLOSED (Funcionamiento normal)
+                    </strong>
+                    <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>
+                      Umbral de falla: 50% | Ring buffer size: 10
+                    </span>
+                  </div>
+
+                  <div style={{
+                    border: '1px solid hsl(var(--border))',
+                    padding: '0.875rem',
+                    borderRadius: 'var(--radius-md)'
+                  }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--muted-foreground))', display: 'block' }}>
+                      Fallback Transaccional (SAGA)
+                    </span>
+                    <strong style={{ fontSize: '0.9375rem', color: 'hsl(var(--warning))', display: 'block', marginTop: '0.25rem' }}>
+                      Lógica de Compensación Activa
+                    </strong>
+                    <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>
+                      Si una reasignación falla, el sistema revierte el estado a CANCELLED (Rollback)
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </>

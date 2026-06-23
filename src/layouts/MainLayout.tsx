@@ -4,11 +4,31 @@ import { useListasEspera } from '../hooks/useListasEspera';
 import { HeartPulse, Moon, Sun, RotateCcw, LogOut, Activity, ShieldCheck, History } from 'lucide-react';
 
 export const MainLayout: React.FC = () => {
-  const { username, userRole, logout, resetearDatos } = useListasEspera();
+  const { 
+    username, 
+    userRole, 
+    userRut, 
+    logout, 
+    resetearDatos, 
+    notificaciones, 
+    fetchNotificaciones, 
+    marcarNotificacionLeida 
+  } = useListasEspera();
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') || 'light';
   });
   const navigate = useNavigate();
+  const [showNotifMenu, setShowNotifMenu] = useState(false);
+
+  useEffect(() => {
+    if (userRut && userRole === 'ROLE_PACIENTE') {
+      fetchNotificaciones(userRut);
+      const interval = setInterval(() => {
+        fetchNotificaciones(userRut);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [userRut, userRole, fetchNotificaciones]);
 
   // Cambiar tema
   useEffect(() => {
@@ -34,6 +54,8 @@ export const MainLayout: React.FC = () => {
       }
     }
   };
+
+  const unreadCount = notificaciones ? notificaciones.filter((n: any) => !n.leido).length : 0;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -178,6 +200,125 @@ export const MainLayout: React.FC = () => {
                 <RotateCcw size={14} />
                 Sincronizar
               </button>
+            )}
+
+            {/* Campana de Notificaciones (Solo para Pacientes) */}
+            {userRole === 'ROLE_PACIENTE' && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowNotifMenu(!showNotifMenu)}
+                  className="rn-btn rn-btn-icon"
+                  style={{
+                    borderRadius: '9999px',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative'
+                  }}
+                  title="Notificaciones de Reasignación"
+                >
+                  <span style={{ fontSize: '1.2rem' }}>🔔</span>
+                  {unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '2px',
+                      right: '2px',
+                      backgroundColor: 'hsl(var(--danger))',
+                      color: 'white',
+                      fontSize: '0.625rem',
+                      fontWeight: 'bold',
+                      borderRadius: '9999px',
+                      minWidth: '16px',
+                      height: '16px',
+                      padding: '0 4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifMenu && (
+                  <div style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '42px',
+                    width: '320px',
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 'var(--radius-lg)',
+                    boxShadow: 'var(--shadow-lg)',
+                    padding: '0.75rem',
+                    zIndex: 100,
+                    maxHeight: '360px',
+                    overflowY: 'auto'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem',
+                      paddingBottom: '0.5rem',
+                      borderBottom: '1px solid hsl(var(--border))'
+                    }}>
+                      <strong style={{ fontSize: '0.875rem' }}>Mensajes y Alertas</strong>
+                      <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                        {notificaciones.length} en total
+                      </span>
+                    </div>
+
+                    {notificaciones.length === 0 ? (
+                      <p style={{
+                        fontSize: '0.75rem',
+                        color: 'hsl(var(--muted-foreground))',
+                        textAlign: 'center',
+                        margin: '1.5rem 0'
+                      }}>
+                        No tienes alertas de reasignación pendientes.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {notificaciones.map((n: any) => (
+                          <div
+                            key={n.id}
+                            onClick={() => marcarNotificacionLeida(n.id)}
+                            style={{
+                              padding: '0.625rem',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: n.leido ? 'transparent' : 'hsl(var(--primary)/0.06)',
+                              border: '1px solid ' + (n.leido ? 'transparent' : 'hsl(var(--primary)/0.15)'),
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                              transition: 'all 0.2s ease',
+                              textAlign: 'left'
+                            }}
+                          >
+                            <div style={{
+                              fontWeight: n.leido ? 500 : 700,
+                              color: 'hsl(var(--foreground))',
+                              lineHeight: 1.3
+                            }}>
+                              {n.mensaje}
+                            </div>
+                            <div style={{
+                              fontSize: '0.625rem',
+                              color: 'hsl(var(--muted-foreground))',
+                              marginTop: '0.25rem',
+                              textAlign: 'right'
+                            }}>
+                              {new Date(n.fechaCreacion).toLocaleTimeString('es-CL')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Selector de Tema */}

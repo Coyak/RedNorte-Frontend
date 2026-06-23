@@ -25,6 +25,7 @@ export interface AtencionBase {
   prioridad: number; // 1 (Máxima) a 5 (Mínima)
   tipo: TipoAtencion;
   detalle: string; // Especialidad, tipo de cirugía o motivo de emergencia
+  sagaStatus?: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 }
 
 export interface Reasignacion {
@@ -64,7 +65,8 @@ export function mapAtencion(a: any): AtencionBase {
     fechaSolicitud: a.fechaSolicitud || new Date().toISOString(),
     prioridad: a.prioridad || 3,
     tipo: tipo as TipoAtencion,
-    detalle: detalle
+    detalle: detalle,
+    sagaStatus: a.sagaStatus
   };
 }
 
@@ -72,6 +74,7 @@ export function useListasEsperaState() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [atenciones, setAtenciones] = useState<AtencionBase[]>([]);
   const [reasignaciones, setReasignaciones] = useState<Reasignacion[]>([]);
+  const [notificaciones, setNotificaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -371,6 +374,42 @@ export function useListasEsperaState() {
     await refreshData();
   };
 
+  const fetchNotificaciones = useCallback(async (rut: string) => {
+    if (!rut) return;
+    try {
+      const res = await api.get(`/api/notificaciones/paciente/${rut}`);
+      setNotificaciones(res.data || []);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  }, []);
+
+  const marcarNotificacionLeida = async (id: number) => {
+    try {
+      await api.put(`/api/notificaciones/${id}/leer`);
+      if (userRut) {
+        await fetchNotificaciones(userRut);
+      }
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  const limpiarCacheRedis = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.delete('/api/listas-espera/atenciones/cache');
+      await fetchAtenciones();
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Error al purgar caché';
+      setError(errMsg);
+      throw new Error(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     pacientes,
     atenciones,
@@ -394,7 +433,11 @@ export function useListasEsperaState() {
     obtenerUsuariosSistema,
     obtenerEstadisticasAuditoria,
     resetearDatos,
-    refreshData
+    refreshData,
+    notificaciones,
+    fetchNotificaciones,
+    marcarNotificacionLeida,
+    limpiarCacheRedis
   };
 }
 
