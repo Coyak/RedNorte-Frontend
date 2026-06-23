@@ -1,21 +1,7 @@
 {
-  "name": "@rednorte/ui",
+  "name": "rednorte-frontend",
   "version": "1.0.0",
   "type": "module",
-  "main": "./dist/rednorte-frontend.umd.cjs",
-  "module": "./dist/rednorte-frontend.js",
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/rednorte-frontend.js",
-      "require": "./dist/rednorte-frontend.umd.cjs"
-    },
-    "./dist/index.css": "./dist/index.css"
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -24,13 +10,11 @@
     "test": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
-  },
   "dependencies": {
     "axios": "^1.16.1",
     "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-router-dom": "^7.17.0"
   },
   "devDependencies": {

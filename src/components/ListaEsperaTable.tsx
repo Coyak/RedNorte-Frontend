@@ -59,6 +59,18 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
     });
   };
 
+  const obtenerFechaCita = (fechaSolicitudStr: string) => {
+    const date = new Date(fechaSolicitudStr);
+    date.setHours(date.getHours() + 24);
+    return date.toLocaleDateString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const obtenerNombrePrioridad = (prioridad: number) => {
     switch (prioridad) {
       case 1: return 'G1 - Gravedad Alta';
@@ -230,9 +242,10 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
                 <th>ID</th>
                 <th>Paciente</th>
                 <th>RUT</th>
-                <th>Fecha Solicitud</th>
+                <th>Fecha Solicitud / Cita</th>
                 <th>Tipo / Detalle</th>
                 <th>Prioridad</th>
+                <th>Transacción SAGA</th>
                 <th>Estado</th>
                 <th style={{ textAlign: 'right' }}>Acciones</th>
               </tr>
@@ -250,8 +263,19 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
                     </div>
                   </td>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{atencion.paciente.rut}</td>
-                  <td style={{ color: 'hsl(var(--muted-foreground))' }}>
-                    {formatearFecha(atencion.fechaSolicitud)}
+                  <td style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8125rem' }}>
+                    {atencion.estado === 'AGENDADO' ? (
+                      <div>
+                        <span style={{ display: 'block', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>
+                          Cita: {obtenerFechaCita(atencion.fechaSolicitud)}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', opacity: 0.8 }}>
+                          (Solicitado: {formatearFecha(atencion.fechaSolicitud).split(' ')[0]})
+                        </span>
+                      </div>
+                    ) : (
+                      formatearFecha(atencion.fechaSolicitud)
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -267,6 +291,21 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
                     </span>
                   </td>
                   <td>
+                    {atencion.sagaStatus === 'PENDING' ? (
+                      <span style={{ color: 'hsl(var(--warning))', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600 }}>
+                        <RefreshCw size={12} className="animate-spin" /> PENDING
+                      </span>
+                    ) : atencion.sagaStatus === 'CANCELLED' ? (
+                      <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', fontWeight: 600 }}>
+                        ❌ CANCELLED
+                      </span>
+                    ) : (
+                      <span style={{ color: 'hsl(var(--success))', fontSize: '0.75rem', fontWeight: 600 }}>
+                        ✔️ CONFIRMED
+                      </span>
+                    )}
+                  </td>
+                  <td>
                     <span className={`rn-badge ${
                       atencion.estado === 'EN_ESPERA' ? 'rn-badge-espera' :
                       atencion.estado === 'AGENDADO' ? 'rn-badge-agendado' :
@@ -276,7 +315,7 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
                     </span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '0.37rem', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'inline-flex', gap: '0.37rem', justifyContent: 'flex-end', alignItems: 'center' }}>
                       {onVerDetalle && (
                         <button
                           onClick={() => onVerDetalle(atencion)}
@@ -288,21 +327,38 @@ export const ListaEsperaTable: React.FC<ListaEsperaTableProps> = ({
                       )}
                       
                       {atencion.estado === 'AGENDADO' && (
-                        <button
-                          onClick={() => onCancelarYReasignar(atencion.id)}
-                          disabled={buscando}
-                          className="rn-btn rn-btn-secondary"
-                          style={{
-                            padding: '0.375rem 0.75rem',
-                            fontSize: '0.75rem',
-                            borderColor: 'hsl(var(--danger) / 0.3)',
-                            color: 'hsl(var(--danger))'
-                          }}
-                          title="Cancelar y activar reasignación"
-                        >
-                          <RefreshCw size={12} className={buscando ? 'animate-spin' : ''} />
-                          Reasignar
-                        </button>
+                        <>
+                          <button
+                            onClick={() => onActualizarEstado(atencion.id, 'ATENDIDO')}
+                            disabled={buscando}
+                            className="rn-btn rn-btn-primary"
+                            style={{
+                              padding: '0.375rem 0.75rem',
+                              fontSize: '0.75rem',
+                              backgroundColor: 'hsl(var(--success))',
+                              borderColor: 'hsl(var(--success)/0.2)',
+                              color: 'white'
+                            }}
+                            title="Marcar cita como completada / Atendida"
+                          >
+                            Atender
+                          </button>
+                          <button
+                            onClick={() => onCancelarYReasignar(atencion.id)}
+                            disabled={buscando}
+                            className="rn-btn rn-btn-secondary"
+                            style={{
+                              padding: '0.375rem 0.75rem',
+                              fontSize: '0.75rem',
+                              borderColor: 'hsl(var(--danger) / 0.3)',
+                              color: 'hsl(var(--danger))'
+                            }}
+                            title="Cancelar y activar reasignación"
+                          >
+                            <RefreshCw size={12} className={buscando ? 'animate-spin' : ''} />
+                            Reasignar
+                          </button>
+                        </>
                       )}
 
                       {atencion.estado === 'EN_ESPERA' && (

@@ -24,7 +24,18 @@ export const ListaEsperaContainer: React.FC<ListaEsperaContainerProps> = ({
     // Modo de pruebas/tests sin ListasEsperaProvider
   }
 
-  const atenciones = atencionesProp ?? context?.atenciones ?? [];
+  const atenciones: AtencionBase[] = atencionesProp ?? context?.atenciones ?? [];
+  
+  const [filtroEstado, setFiltroEstado] = useState<string>('TODOS');
+
+  // Filtrar atenciones por estado
+  const atencionesFiltradas = atenciones.filter((a) => {
+    if (filtroEstado === 'TODOS') return true;
+    if (filtroEstado === 'EN_ESPERA') return a.estado === 'EN_ESPERA';
+    if (filtroEstado === 'AGENDADO') return a.estado === 'AGENDADO';
+    if (filtroEstado === 'ATENDIDO_CANCELADO') return a.estado === 'ATENDIDO' || a.estado === 'CANCELADO';
+    return true;
+  });
   const actualizarEstadoAtencion = onActualizarEstadoProp ?? context?.actualizarEstadoAtencion;
   const cancelarYReasignar = onCancelarYReasignarProp ?? context?.cancelarYReasignar;
   
@@ -183,13 +194,37 @@ export const ListaEsperaContainer: React.FC<ListaEsperaContainerProps> = ({
         flexWrap: 'wrap',
         gap: '1rem'
       }}>
-        <div>
+        <div style={{ flex: '1 1 500px' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
             Dashboard de Gestión Asistencial
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'hsl(var(--muted-foreground))', margin: 0, marginTop: '0.25rem' }}>
             Consola clínica para control de ingresos y asignación de prioridades médicas en listas de espera hospitalarias.
+            Al cancelar una cita agendada, el motor reasigna automáticamente el cupo al paciente en espera más prioritario.
           </p>
+          
+          {/* Leyenda de Prioridades G1-G5 */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--muted-foreground))', marginRight: '0.25rem' }}>
+              Prioridades:
+            </span>
+            <span className="rn-badge rn-badge-prio-1" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>G1 Urgente</span>
+            <span className="rn-badge rn-badge-prio-2" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>G2 Prioritaria</span>
+            <span className="rn-badge rn-badge-prio-3" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>G3 Moderada</span>
+            <span className="rn-badge rn-badge-prio-4" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>G4 Baja</span>
+            <span className="rn-badge rn-badge-prio-5" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>G5 Control</span>
+          </div>
+
+          {/* Leyenda de Estados */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--muted-foreground))', marginRight: '0.25rem' }}>
+              Estados:
+            </span>
+            <span className="rn-badge rn-badge-espera" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>En Espera (Pendiente)</span>
+            <span className="rn-badge rn-badge-agendado" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Agendado (Cita confirmada)</span>
+            <span className="rn-badge rn-badge-atendido" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Atendido (Completado)</span>
+            <span className="rn-badge rn-badge-cancelado" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Cancelado (Cupo libre)</span>
+          </div>
         </div>
 
         {/* Botones de Registro rápido (Ocultos en tests si no hay pacientes de contexto) */}
@@ -216,8 +251,50 @@ export const ListaEsperaContainer: React.FC<ListaEsperaContainerProps> = ({
         )}
       </div>
 
+      {/* 📑 Selector de Pestañas (Filtros por Estado) */}
+      <div style={{
+        display: 'flex',
+        gap: '0.5rem',
+        borderBottom: '1px solid hsl(var(--border))',
+        marginBottom: '1.5rem',
+        paddingBottom: '0.5rem'
+      }}>
+        <button
+          type="button"
+          onClick={() => setFiltroEstado('TODOS')}
+          className={`rn-btn ${filtroEstado === 'TODOS' ? 'rn-btn-primary' : 'rn-btn-secondary'}`}
+          style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+        >
+          Todos ({atenciones.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltroEstado('EN_ESPERA')}
+          className={`rn-btn ${filtroEstado === 'EN_ESPERA' ? 'rn-btn-primary' : 'rn-btn-secondary'}`}
+          style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+        >
+          En Espera ({atenciones.filter(a => a.estado === 'EN_ESPERA').length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltroEstado('AGENDADO')}
+          className={`rn-btn ${filtroEstado === 'AGENDADO' ? 'rn-btn-primary' : 'rn-btn-secondary'}`}
+          style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+        >
+          Agendados ({atenciones.filter(a => a.estado === 'AGENDADO').length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltroEstado('ATENDIDO_CANCELADO')}
+          className={`rn-btn ${filtroEstado === 'ATENDIDO_CANCELADO' ? 'rn-btn-primary' : 'rn-btn-secondary'}`}
+          style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+        >
+          Atendidos/Cancelados ({atenciones.filter(a => a.estado === 'ATENDIDO' || a.estado === 'CANCELADO').length})
+        </button>
+      </div>
+
       <ListaEsperaTable
-        atenciones={atenciones}
+        atenciones={atencionesFiltradas}
         buscando={buscando}
         error={error}
         onErrorClose={() => setError(null)}

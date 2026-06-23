@@ -10,7 +10,8 @@ vi.mock('../../services/api', () => {
     default: {
       get: vi.fn(),
       post: vi.fn(),
-      put: vi.fn()
+      put: vi.fn(),
+      delete: vi.fn()
     }
   };
 });
@@ -526,5 +527,100 @@ describe('useListasEspera Hook', () => {
       )
     );
     expect(screen.getByText('Role: none')).toBeInTheDocument();
+  });
+
+  test('debe obtener notificaciones de paciente (fetchNotificaciones)', async () => {
+    const rawNotificaciones = [
+      { id: 1, mensaje: 'Alerta', leido: false }
+    ];
+    vi.mocked(api.get).mockResolvedValueOnce({ data: rawNotificaciones });
+
+    const { result } = renderHook(() => useListasEspera());
+
+    await act(async () => {
+      await result.current.fetchNotificaciones('12345678-9');
+    });
+
+    expect(api.get).toHaveBeenCalledWith('/api/notificaciones/paciente/12345678-9');
+    expect(result.current.notificaciones).toEqual(rawNotificaciones);
+
+    // Test falsy rut branch
+    vi.mocked(api.get).mockClear();
+    await act(async () => {
+      await result.current.fetchNotificaciones('');
+    });
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
+  test('debe marcar notificacion como leida (marcarNotificacionLeida)', async () => {
+    vi.mocked(api.put).mockResolvedValueOnce({ data: {} });
+    vi.mocked(api.get).mockResolvedValue({ data: [] });
+
+    localStorage.setItem('rednorte_rut', '12345678-9');
+    const { result } = renderHook(() => useListasEspera());
+
+    await act(async () => {
+      await result.current.marcarNotificacionLeida(1);
+    });
+
+    expect(api.put).toHaveBeenCalledWith('/api/notificaciones/1/leer');
+    expect(api.get).toHaveBeenCalledWith('/api/notificaciones/paciente/12345678-9');
+
+    // Test when userRut is empty branch
+    localStorage.removeItem('rednorte_rut');
+    const { result: hookNoRut } = renderHook(() => useListasEspera());
+    vi.mocked(api.put).mockClear();
+    vi.mocked(api.get).mockClear();
+    vi.mocked(api.put).mockResolvedValueOnce({ data: {} });
+
+    await act(async () => {
+      await hookNoRut.current.marcarNotificacionLeida(2);
+    });
+    expect(api.put).toHaveBeenCalledWith('/api/notificaciones/2/leer');
+    expect(api.get).not.toHaveBeenCalled();
+
+    // Test catch error branch
+    vi.mocked(api.put).mockRejectedValueOnce(new Error('Failed to update'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await act(async () => {
+      await hookNoRut.current.marcarNotificacionLeida(3);
+    });
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  test('debe limpiar cache redis (limpiarCacheRedis)', async () => {
+    vi.mocked(api.delete).mockResolvedValueOnce({ data: {} });
+    vi.mocked(api.get).mockResolvedValue({ data: [] });
+
+    const { result } = renderHook(() => useListasEspera());
+
+    await act(async () => {
+      await result.current.limpiarCacheRedis();
+    });
+
+    expect(api.delete).toHaveBeenCalledWith('/api/listas-espera/atenciones/cache');
+    expect(api.get).toHaveBeenCalledWith('/api/listas-espera/atenciones');
+
+    // Test error cases for branch coverage of errMsg
+    // Case 1: err.response.data.message
+    vi.mocked(api.delete).mockRejectedValueOnce({
+      response: { data: { message: 'Redis is down' } }
+    });
+    await act(async () => {
+      await expect(result.current.limpiarCacheRedis()).rejects.toThrow('Redis is down');
+    });
+
+    // Case 2: err.message
+    vi.mocked(api.delete).mockRejectedValueOnce(new Error('Timeout'));
+    await act(async () => {
+      await expect(result.current.limpiarCacheRedis()).rejects.toThrow('Timeout');
+    });
+
+    // Case 3: completely empty error
+    vi.mocked(api.delete).mockRejectedValueOnce({});
+    await act(async () => {
+      await expect(result.current.limpiarCacheRedis()).rejects.toThrow('Error al purgar caché');
+    });
   });
 });

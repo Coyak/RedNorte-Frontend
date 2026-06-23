@@ -210,7 +210,7 @@ describe('ListaEsperaContainer', () => {
   // --- Nuevos tests para los Modales (Ingresos) ---
 
   test('debe abrir modal, rellenar y guardar un nuevo paciente con éxito', async () => {
-    mockRegistrarPaciente.mockResolvedValueOnce({});
+    mockRegistrarPaciente.mockResolvedValueOnce(undefined);
     const { container } = render(<ListaEsperaContainer {...defaultProps} />);
 
     // Abrir modal de paciente
@@ -293,7 +293,7 @@ describe('ListaEsperaContainer', () => {
   });
 
   test('debe abrir modal, rellenar y guardar una nueva solicitud de atención', async () => {
-    mockRegistrarAtencion.mockResolvedValueOnce({});
+    mockRegistrarAtencion.mockResolvedValueOnce(undefined);
     const { container } = render(<ListaEsperaContainer {...defaultProps} />);
 
     const openBtn = screen.getByRole('button', { name: /nueva solicitud/i });
@@ -401,5 +401,79 @@ describe('ListaEsperaContainer', () => {
     const closeIconBtn = container.querySelector('.rn-modal button.rn-btn-icon') as HTMLButtonElement;
     await userEvent.click(closeIconBtn);
     expect(screen.queryByText('Ingresar a Lista de Espera')).not.toBeInTheDocument();
+  });
+
+  test('debe cambiar filtro de estado y filtrar atenciones al presionar los botones de pestañas', async () => {
+    const atencionesMixtas: AtencionBase[] = [
+      {
+        id: 1,
+        paciente: { rut: '12345678-9', nombres: 'Juan', apellidos: 'Perez', fechaNacimiento: '1990-01-01', direccion: 'Dir' },
+        estado: 'EN_ESPERA',
+        fechaSolicitud: '2026-06-10T10:30:00Z',
+        prioridad: 3,
+        tipo: 'CONSULTA',
+        detalle: 'Consulta'
+      },
+      {
+        id: 2,
+        paciente: { rut: '98765432-1', nombres: 'Maria', apellidos: 'Gomez', fechaNacimiento: '1990-01-01', direccion: 'Dir' },
+        estado: 'AGENDADO',
+        fechaSolicitud: '2026-06-10T10:30:00Z',
+        prioridad: 1,
+        tipo: 'CIRUGIA',
+        detalle: 'Cirugia'
+      },
+      {
+        id: 3,
+        paciente: { rut: '87654321-0', nombres: 'Carlos', apellidos: 'Diaz', fechaNacimiento: '1990-01-01', direccion: 'Dir' },
+        estado: 'ATENDIDO',
+        fechaSolicitud: '2026-06-10T10:30:00Z',
+        prioridad: 2,
+        tipo: 'EMERGENCIA',
+        detalle: 'Emergencia'
+      }
+    ];
+
+    const propsWithMix = {
+      ...defaultProps,
+      atenciones: atencionesMixtas
+    };
+
+    render(<ListaEsperaContainer {...propsWithMix} />);
+    
+    const tableMock = vi.mocked(ListaEsperaTable);
+    let lastCallProps = tableMock.mock.calls[tableMock.mock.calls.length - 1][0];
+    expect(lastCallProps.atenciones.length).toBe(3);
+
+    // Filtrar por En Espera
+    const enEsperaTab = screen.getByRole('button', { name: /En Espera \(1\)/i });
+    await userEvent.click(enEsperaTab);
+
+    lastCallProps = tableMock.mock.calls[tableMock.mock.calls.length - 1][0];
+    expect(lastCallProps.atenciones.length).toBe(1);
+    expect(lastCallProps.atenciones[0].estado).toBe('EN_ESPERA');
+
+    // Filtrar por Agendados
+    const agendadosTab = screen.getByRole('button', { name: /Agendados \(1\)/i });
+    await userEvent.click(agendadosTab);
+
+    lastCallProps = tableMock.mock.calls[tableMock.mock.calls.length - 1][0];
+    expect(lastCallProps.atenciones.length).toBe(1);
+    expect(lastCallProps.atenciones[0].estado).toBe('AGENDADO');
+
+    // Filtrar por Atendidos/Cancelados
+    const atendidosTab = screen.getByRole('button', { name: /Atendidos\/Cancelados \(1\)/i });
+    await userEvent.click(atendidosTab);
+
+    lastCallProps = tableMock.mock.calls[tableMock.mock.calls.length - 1][0];
+    expect(lastCallProps.atenciones.length).toBe(1);
+    expect(lastCallProps.atenciones[0].estado).toBe('ATENDIDO');
+
+    // Volver a Todos
+    const todosTab = screen.getByRole('button', { name: /Todos \(3\)/i });
+    await userEvent.click(todosTab);
+
+    lastCallProps = tableMock.mock.calls[tableMock.mock.calls.length - 1][0];
+    expect(lastCallProps.atenciones.length).toBe(3);
   });
 });
